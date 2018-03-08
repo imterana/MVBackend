@@ -1,0 +1,66 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "description": "desc",
+    "title": "TestAPI",
+    "version": "1.0"
+  },
+  "schemes": [
+    "https"
+  ],
+  "paths": {
+    "/": {
+      "get": {
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "version",
+            "in": "query",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "vendor",
+            "in": "query",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "test",
+            "headers": {
+              "Content-type": {
+                "type": "string"
+              },
+              "requestId": {
+                "type": "string"
+              }
+            }
+          },
+          "302": {
+            "description": "Redirect",
+            "headers": {
+              "Location": {
+                "type": "string"
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "headers": {
+              "test-method-response-header": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

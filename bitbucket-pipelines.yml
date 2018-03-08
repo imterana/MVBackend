@@ -1,0 +1,15 @@
+image: python:3.6
+
+pipelines:
+  default:
+    - step:
+        caches:
+          - pip
+        script:
+          - echo "${BITBUCKET_BRANCH}"
+          - apt-get update
+          - apt-get install -y zip
+          - pip install boto3==1.3.0 awscli botocore
+          - zip -r archive mark_as_visited
+          - aws s3 cp archive.zip "s3://markasvisited-source/${AWS_DEPLOY_KEY_PREFIX}${BITBUCKET_BRANCH}.zip"
+          - python deploy.py
