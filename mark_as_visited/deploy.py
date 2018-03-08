@@ -6,6 +6,7 @@ from . import aws_lambda
 def s3_uri(bucket, key):
     S3_URI = 's3://{bucket}/{key}'.format(bucket=bucket, key=key)
 
+
 def recreate_lambda(name, handler, bucket, key, role):
     lambda_client = boto3.client('lambda')
 
@@ -28,15 +29,20 @@ def recreate_lambda(name, handler, bucket, key, role):
     )
     return func['FunctionArn']
 
+
 def get_resource(resources, target):
     return [res for res in resources['items'] if res['path'] == target]
+
 
 def update_schema(schema_path):
     apigateway_client = boto3.client('apigateway')
     with open(schema_path) as spec:
-        api = apigateway_client.import_rest_api(body=spec.read().encode('utf-8'))
-    
+        api = apigateway_client.import_rest_api(
+                body=spec.read().encode('utf-8')
+        )
+
     return api['id']
+
 
 def attach_lambda_to_method(api_id, lambda_arn, method, role, lambda_region):
     apigateway_client = boto3.client('apigateway')
@@ -56,12 +62,13 @@ def attach_lambda_to_method(api_id, lambda_arn, method, role, lambda_region):
         integrationHttpMethod='POST',
         type='AWS_PROXY',
         uri='arn:aws:apigateway:{region}:lambda:path/2015-03-31/'
-            'functions/{func}/invocations'.format(
+        'functions/{func}/invocations'.format(
             region=lambda_region,
             func=lambda_arn
         ),
         credentials=role
     )
+
 
 def create_api_deployment(api_id, stage):
     apigateway_client = boto3.client('apigateway')
@@ -69,5 +76,3 @@ def create_api_deployment(api_id, stage):
         restApiId=api_id,
         stageName=stage
     )
-
-

@@ -12,12 +12,11 @@ addons:
       - zip
 
 install:
-  - pip install boto3==1.3.0 awscli botocore
+  - pip install boto3==1.3.0 awscli botocore pycodestyle
 
 script:
-  echo "Nothing here yet"
+  - pycodestyle .
 
 deploy:
   provider: script
   script: bash deploy.sh
-
