@@ -1,0 +1,23 @@
+language: python
+python:
+  - "3.6"
+
+branches:
+  only:
+    - master
+
+addons:
+  apt:
+    packages:
+      - zip
+
+install:
+  - pip install boto3==1.3.0 awscli botocore
+
+script:
+  echo "Nothing here yet"
+
+deploy:
+  provider: script
+  script: bash deploy.sh
+
