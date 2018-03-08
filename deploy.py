@@ -18,13 +18,20 @@ api_id = deploy.update_schema('mark_as_visited/deploy/api.json')
 
 for method, function in aws_lambda.lambda_functions.items():
     lambda_name = "mav_{branch}_{function}".format(
-        branch=branch, 
-        function = function.__name__
+        branch=branch,
+        function=function.__name__
     )
-    handler = "{module}.{function}".format(module=function.__module__, function=function.__name__)
+    handler = "{module}.{function}".format(
+            module=function.__module__,
+            function=function.__name__
+    )
     print(handler)
-    lambda_arn = deploy.recreate_lambda(lambda_name, handler, bucket, key, lambda_role)
-    deploy.attach_lambda_to_method(api_id, lambda_arn, method, gateway_role, region)
+    lambda_arn = deploy.recreate_lambda(
+            lambda_name, handler, bucket, key, lambda_role
+    )
+    deploy.attach_lambda_to_method(
+            api_id, lambda_arn, method, gateway_role, region
+    )
 
 deploy.create_api_deployment(api_id, stage)
 
