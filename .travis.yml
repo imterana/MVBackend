@@ -22,7 +22,7 @@ before_install:
   - chmod +x docker-compose
   - sudo mv docker-compose /usr/local/bin
   - docker-compose up --build -d
-  - until docker exec -it backend_database_1 psql -U postgres -h localhost -c "select 1" -d postgres; do sleep 1; done
+  - until docker exec -it mvbackend_database_1 psql -U postgres -h localhost -c "select 1" -d postgres; do sleep 1; done
 
 script:
-  - docker exec -it backend_gunicorn_1 python manage.py test
+  - docker exec -it mvbackend_gunicorn_1 python manage.py test
