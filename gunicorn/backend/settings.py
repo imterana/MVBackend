@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.google',
     'allauth.socialaccount.providers.vk',
     'api.apps.ApiConfig',
+    'channels',
 ]
 
 MIDDLEWARE = [
@@ -92,6 +93,15 @@ DATABASES = {
     }
 }
 
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("redis", 6379)],
+        },
+    },
+}
+
 # Password validation
 # https://docs.djangoproject.com/en/2.0/ref/settings/#auth-password-validators
 
@@ -133,6 +143,8 @@ USE_L10N = True
 USE_TZ = True
 
 SITE_ID = 1
+
+ASGI_APPLICATION = 'backend.routing.application'
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/2.0/howto/static-files/

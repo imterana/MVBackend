@@ -20,6 +20,7 @@ services:
       - "./gunicorn:/usr/src/app"
     links:
       - database
+      - redis
     command: bash -c "./run.sh"
 
   nginx:
@@ -32,6 +33,11 @@ services:
       - "static:/www/static"
     links:
       - gunicorn
+
+  redis:
+    tty: true
+    restart: always
+    image: redis:latest
 
 volumes:
   static:

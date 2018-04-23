@@ -1,4 +1,5 @@
 django
 django-allauth
-gunicorn
+daphne
 psycopg2
+channels
