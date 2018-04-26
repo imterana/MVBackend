@@ -3,3 +3,4 @@ django-allauth
 daphne
 psycopg2
 channels
+channels_redis

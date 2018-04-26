@@ -11,6 +11,7 @@ services:
       - "./postgres-data:/var/lib/postgresql/data"
 
   gunicorn:
+    tty: true
     restart: always
     build: ./gunicorn/
     expose:
