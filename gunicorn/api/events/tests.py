@@ -188,3 +188,28 @@ class EventTestCase(APITestCase):
                 response,
                 ResponseCode.RESPONSE_UNKNOWN_ERROR,
         )
+
+    def test_filter_by_name(self):
+        client = Client()
+        client.force_login(self.user)
+
+        event1_name = 'testevent'
+        event2_name = 'tesevent'
+
+        client.post(reverse('create_event'), {'name': event1_name})
+        client.post(reverse('create_event'), {'name': event2_name})
+
+        response = client.get(reverse('get_events'), {'name': event1_name})
+        parsed = self.parseAndCheckResponseCode(response,
+                                                ResponseCode.RESPONSE_OK)
+
+        self.assertEqual(1, len(parsed["response"]))
+        self.assertEqual(event1_name, parsed["response"][0]["name"])
+
+        response = client.get(reverse('get_events'), {'name': 'tes'})
+        parsed = self.parseAndCheckResponseCode(response,
+                                                ResponseCode.RESPONSE_OK)
+
+        self.assertEqual(2, len(parsed["response"]))
+        names = set(map(lambda x: x["name"], parsed["response"]))
+        self.assertSetEqual({event1_name, event2_name}, names)

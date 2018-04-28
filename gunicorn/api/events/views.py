@@ -39,7 +39,15 @@ def event_create(request):
 @require_GET
 def event_list(request):
     events = []
-    for event in Event.objects.all():
+    if 'name' in request.GET:
+        name = request.GET['name']
+        if len(name) < 3:
+            return APIInvalidArgumentResponse(error_msg="Name is too short")
+        query = Event.objects.filter(name__icontains=name)
+    else:
+        query = Event.objects.all()
+
+    for event in query:
         events.append({"name": event.name,
                        "event_id": event.uuid})
     return APIResponse(response=events)
