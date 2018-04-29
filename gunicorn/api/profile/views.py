@@ -62,12 +62,11 @@ def profile_confirm(request):
     return APIResponse()
 
 
-@require_arguments(["display_name_part"])
 @require_GET
 def profile_find_by_name(request):
     if 'display_name_part' in request.GET:
         name = request.GET['display_name_part']
-        if len(name) < 3:
+        if len(name) < 4:
             return APIInvalidArgumentResponse(error_msg="Name part is too short")
         query = UserProfile.user.objects.filter(username__icontains=name)
     else:

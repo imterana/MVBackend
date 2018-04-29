@@ -8,7 +8,7 @@ class UserProfile(models.Model):
         on_delete=models.CASCADE,
         primary_key=True,
     )
-    picture = models.CharField(unique=True)
+    picture = models.CharField(max_length=128, unique=True)
     confirmed = models.BooleanField(default=False)
     bio = models.CharField(max_length=128)
     karma = models.PositiveIntegerField(default=0)
