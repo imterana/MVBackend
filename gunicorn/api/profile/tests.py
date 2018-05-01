@@ -1,4 +1,5 @@
 from django.test import Client
+from django.contrib.auth.models import User
 from django.urls import reverse
 
 from ..misc.response import ResponseCode
@@ -6,12 +7,17 @@ from ..misc.test import APITestCase
 
 from ..models import UserProfile
 
+TEST_FILES_DIR = "/usr/src/test_files/"
+
 
 class UserProfileTestCase(APITestCase):
     @classmethod
     def setUpTestData(cls):
-        profile = UserProfile(username='test name ')
-        profile.user.set_password('12345')
+        user = User(username='test name ')
+        user.set_password('12345')
+        user.save()
+
+        profile = UserProfile(user=user)
         profile.picture = '/some/test/url'
         profile.bio = 'test institute, test department, test group'
         profile.confirmed = True
@@ -23,7 +29,7 @@ class UserProfileTestCase(APITestCase):
         client = Client()
         client.force_login(self.user_profile.user)
 
-        response = client.get(reverse('get_profile'), {'user_id': self.user_profile.user.uuid})
+        response = client.get(reverse('get_profile'), {'user_id': self.user_profile.user.id})
         parsed = self.parseAndCheckResponseCode(response, ResponseCode.RESPONSE_OK)
         profile = parsed["response"]
 
@@ -50,7 +56,7 @@ class UserProfileTestCase(APITestCase):
         response = client.post(reverse('update_profile_info'), {'display_name': new_name})
         self.parseAndCheckResponseCode(response, ResponseCode.RESPONSE_OK)
 
-        response = client.get(reverse('get_profile'), {'user_id': self.user_profile.user.uuid})
+        response = client.get(reverse('get_profile'), {'user_id': self.user_profile.user.id})
         parsed = self.parseAndCheckResponseCode(response, ResponseCode.RESPONSE_OK)
         profile = parsed["response"]
 
@@ -61,10 +67,10 @@ class UserProfileTestCase(APITestCase):
         client.force_login(self.user_profile.user)
 
         new_bio = 'new bio is a very cool bio'
-        response = client.post(reverse('update_profile_info'), {'display_name': new_bio})
+        response = client.post(reverse('update_profile_info'), {'bio': new_bio})
         self.parseAndCheckResponseCode(response, ResponseCode.RESPONSE_OK)
 
-        response = client.get(reverse('get_profile'), {'user_id': self.user_profile.user.uuid})
+        response = client.get(reverse('get_profile'), {'user_id': self.user_profile.user.id})
         parsed = self.parseAndCheckResponseCode(response, ResponseCode.RESPONSE_OK)
         profile = parsed["response"]
 
@@ -76,12 +82,12 @@ class UserProfileTestCase(APITestCase):
 
         name_part = 'test n'
 
-        response = client.post(reverse('find_profile_by_name'), {'display_name_pert': name_part})
+        response = client.get(reverse('find_profile_by_name'), {'display_name_part': name_part})
         parsed = self.parseAndCheckResponseCode(response, ResponseCode.RESPONSE_OK)
-        self.assertEqual(1, parsed["response"].len)
+        self.assertEqual(1, len(parsed["response"]))
         profile = parsed["response"][0]
 
-        self.assertEqual(self.user_profile.user.uuid, profile["user_id"])
+        self.assertEqual(self.user_profile.user.id, profile["user_id"])
         self.assertEqual(self.user_profile.user.username, profile["display_name"])
 
     def test_find_nonexisting_profile_by_name(self):
@@ -90,9 +96,9 @@ class UserProfileTestCase(APITestCase):
 
         name_part = 'noexisting'
 
-        response = client.post(reverse('find_profile_by_name'), {'display_name_pert': name_part})
+        response = client.get(reverse('find_profile_by_name'), {'display_name_part': name_part})
         parsed = self.parseAndCheckResponseCode(response, ResponseCode.RESPONSE_OK)
-        self.assertEqual(0, parsed["response"].len)
+        self.assertEqual(0, len(parsed["response"]))
 
     def test_find_profile_by_short_name(self):
         client = Client()
@@ -100,17 +106,35 @@ class UserProfileTestCase(APITestCase):
 
         name_part = 'tes'
 
-        response = client.post(reverse('find_profile_by_name'), {'display_name_pert': name_part})
+        response = client.get(reverse('find_profile_by_name'), {'display_name_part': name_part})
         self.parseAndCheckResponseCode(response, ResponseCode.RESPONSE_INVALID_ARGUMENT)
 
     def test_find_all_profiles(self):
         client = Client()
         client.force_login(self.user_profile.user)
 
-        response = client.post(reverse('find_profile_by_name'))
+        response = client.get(reverse('find_profile_by_name'))
         parsed = self.parseAndCheckResponseCode(response, ResponseCode.RESPONSE_OK)
-        self.assertEqual(1, parsed["response"].len)
+        self.assertEqual(1, len(parsed["response"]))
         profile = parsed["response"][0]
 
-        self.assertEqual(self.user_profile.user.uuid, profile["user_id"])
+        self.assertEqual(self.user_profile.user.id, profile["user_id"])
         self.assertEqual(self.user_profile.user.username, profile["display_name"])
+
+    def test_update_profile_picture(self):
+        client = Client()
+        client.force_login(self.user_profile.user)
+
+        filename = TEST_FILES_DIR + 'avatar.jpg'
+        with open(filename, "rb") as file:
+            response = client.post(reverse('update_profile_picture'), {'name': 'test avatar', 'image': file})
+        self.parseAndCheckResponseCode(response, ResponseCode.RESPONSE_OK)
+
+    def test_confirm_profile(self):
+        client = Client()
+        client.force_login(self.user_profile.user)
+
+        filename = TEST_FILES_DIR + 'confirmation.jpg'
+        with open(filename, "rb") as file:
+            response = client.post(reverse('upload_profile_confirmation'), {'name': 'test confirmation', 'image': file})
+        self.parseAndCheckResponseCode(response, ResponseCode.RESPONSE_OK)
