@@ -50,8 +50,12 @@ def profile_update_picture(request):
     user = request.user
     image_file = request.FILES["image"]
     _, extension = os.path.splitext(image_file.name)
-    image_file.name = user.username + extension
+    image_file.name = "{uid}_avatar{ext}".format(uid=user.id, ext=extension)
     save_file(image_file, AVATARS_DIR)
+
+    profile = UserProfile.objects.filter(user=user).first()
+    profile.picture = image_file.name
+    profile.save()
     return APIResponse()
 
 
@@ -72,10 +76,11 @@ def profile_update_info(request):
 @require_POST
 @login_required
 def profile_confirm(request):
+    # TODO some notification for moderator to mark the user as confirmed
     user = request.user
     image_file = request.FILES["image"]
     _, extension = os.path.splitext(image_file.name)
-    image_file.name = user.username + extension
+    image_file.name = "{uid}_confirmation{ext}".format(uid=user.id, ext=extension)
     save_file(image_file, CONFIRMATIONS_DIR)
     return APIResponse()
 

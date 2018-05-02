@@ -130,6 +130,12 @@ class UserProfileTestCase(APITestCase):
             response = client.post(reverse('update_profile_picture'), {'name': 'test avatar', 'image': file})
         self.parseAndCheckResponseCode(response, ResponseCode.RESPONSE_OK)
 
+        response = client.get(reverse('get_profile'), {'user_id': self.user_profile.user.id})
+        parsed = self.parseAndCheckResponseCode(response, ResponseCode.RESPONSE_OK)
+        profile = parsed["response"]
+
+        self.assertEqual(profile['pic'], "{uid}_avatar.jpg".format(uid=self.user_profile.user.id))
+
     def test_confirm_profile(self):
         client = Client()
         client.force_login(self.user_profile.user)
