@@ -2,8 +2,11 @@
 Preprocessing request POST OR GET parameters decorators
 """
 
-from .response import APIMissingArgumentResponse
-from .response import APIInvalidArgumentResponse
+
+from .response import (
+        APIMissingArgumentResponse,
+        APIInvalidArgumentResponse
+)
 
 
 def require_files(required):
@@ -62,8 +65,8 @@ def cast_arguments(cast_dict):
                 try:
                     request_params[param] = cast_dict[param](
                                                 request_params[param])
-                except ValueError:
-                    return APIInvalidArgumentResponse(error_msg=str(ValueError))
+                except (ValueError, TypeError) as e:
+                    return APIInvalidArgumentResponse(error_msg=str(e))
             setattr(request, request.method, request_params)
             return func(request)
         return wrapper
