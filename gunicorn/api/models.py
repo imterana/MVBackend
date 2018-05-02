@@ -8,6 +8,7 @@ class UserProfile(models.Model):
         on_delete=models.CASCADE,
         primary_key=True,
     )
+    display_name = models.CharField(max_length=128)
     picture = models.CharField(max_length=128, unique=True, default=None)
     confirmed = models.BooleanField(default=False)
     bio = models.CharField(max_length=128)

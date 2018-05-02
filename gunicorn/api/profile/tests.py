@@ -15,11 +15,12 @@ TEST_FILES_DIR = "/usr/src/test_files/"
 class UserProfileTestCase(APITestCase):
     @classmethod
     def setUpTestData(cls):
-        user = User(username='test name ')
+        user = User(username='test login')
         user.set_password('12345')
         user.save()
 
         profile = UserProfile(user=user)
+        profile.display_name = 'test display name'
         profile.picture = '/some/test/url'
         profile.bio = 'test institute, test department, test group'
         profile.confirmed = True
@@ -35,7 +36,7 @@ class UserProfileTestCase(APITestCase):
         parsed = self.parseAndCheckResponseCode(response, ResponseCode.RESPONSE_OK)
         profile = parsed["response"]
 
-        self.assertEqual(self.user_profile.user.username, profile["display_name"])
+        self.assertEqual(self.user_profile.display_name, profile["display_name"])
         self.assertEqual(self.user_profile.picture, profile["pic"])
         self.assertEqual(self.user_profile.confirmed, profile["confirmed"])
         self.assertEqual(self.user_profile.bio, profile['bio'])
@@ -89,7 +90,7 @@ class UserProfileTestCase(APITestCase):
         client = Client()
         client.force_login(self.user_profile.user)
 
-        name_part = 'test n'
+        name_part = self.user_profile.display_name[:5]
 
         response = client.get(reverse('find_profile_by_name'), {'display_name_part': name_part})
         parsed = self.parseAndCheckResponseCode(response, ResponseCode.RESPONSE_OK)
@@ -97,7 +98,7 @@ class UserProfileTestCase(APITestCase):
         profile = parsed["response"][0]
 
         self.assertEqual(self.user_profile.user.id, profile["user_id"])
-        self.assertEqual(self.user_profile.user.username, profile["display_name"])
+        self.assertEqual(self.user_profile.display_name, profile["display_name"])
 
     def test_find_nonexisting_profile_by_name(self):
         client = Client()
@@ -113,7 +114,7 @@ class UserProfileTestCase(APITestCase):
         client = Client()
         client.force_login(self.user_profile.user)
 
-        name_part = 'tes'
+        name_part = self.user_profile.display_name[:3]
 
         response = client.get(reverse('find_profile_by_name'), {'display_name_part': name_part})
         self.parseAndCheckResponseCode(response, ResponseCode.RESPONSE_INVALID_ARGUMENT)
@@ -128,7 +129,7 @@ class UserProfileTestCase(APITestCase):
         profile = parsed["response"][0]
 
         self.assertEqual(self.user_profile.user.id, profile["user_id"])
-        self.assertEqual(self.user_profile.user.username, profile["display_name"])
+        self.assertEqual(self.user_profile.display_name, profile["display_name"])
 
     def test_update_profile_picture(self):
         client = Client()

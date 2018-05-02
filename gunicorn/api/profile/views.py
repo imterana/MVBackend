@@ -37,7 +37,7 @@ def profile_get(request):
     profile = get_profile_by_id(user_id=user_id)
     if profile is None:
         return APIInvalidArgumentResponse(error_msg="User profile does not exist")
-    return APIResponse(response={"display_name": profile.user.username,
+    return APIResponse(response={"display_name": profile.display_name,
                                  "pic": profile.picture,
                                  "confirmed": profile.confirmed,
                                  "bio": profile.bio,
@@ -68,10 +68,9 @@ def profile_update_info(request):
 
     profile = UserProfile.objects.filter(user=request.user).first()
     if 'display_name' in request.POST:
-        profile.user.username = request.POST['display_name']
+        profile.display_name = request.POST['display_name']
     if 'bio' in request.POST:
         profile.bio = request.POST['bio']
-    profile.user.save()
     profile.save()
     return APIResponse()
 
@@ -95,12 +94,12 @@ def profile_find_by_name(request):
         name = request.GET['display_name_part']
         if len(name) < 4:
             return APIInvalidArgumentResponse(error_msg="Name part is too short")
-        query = UserProfile.objects.filter(user__username__icontains=name)
+        query = UserProfile.objects.filter(display_name__icontains=name)
     else:
         query = UserProfile.objects.all()
 
     profiles = [{"user_id": profile.user.id,
-                 "display_name": profile.user.username}
+                 "display_name": profile.display_name}
                 for profile in query]
 
     return APIResponse(response=profiles)
