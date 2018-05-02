@@ -135,7 +135,7 @@ class UserProfileTestCase(APITestCase):
         client = Client()
         client.force_login(self.user_profile.user)
 
-        filename = TEST_FILES_DIR + 'avatar.jpg'
+        filename = os.path.join(TEST_FILES_DIR, 'avatar.jpg')
         with open(filename, "rb") as file:
             response = client.post(reverse('update_profile_picture'), {'name': 'test avatar', 'image': file})
         self.parseAndCheckResponseCode(response, ResponseCode.RESPONSE_OK)
