@@ -1,1 +1,10 @@
 postgres-data/
+
+
+# Static files
+
+images/avatars/*
+!images/avatars/.gitkeep
+
+images/confirmations/*
+!images/confirmations/.gitkeep

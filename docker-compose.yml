@@ -17,6 +17,8 @@ services:
       - "8000"
     volumes:
       - "static:/static/"
+      - "./images/:/usr/src/images/"
+      - "./test_files/:/usr/src/test_files/"
       - "./gunicorn:/usr/src/app"
     links:
       - database
