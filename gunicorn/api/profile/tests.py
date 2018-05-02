@@ -145,7 +145,7 @@ class UserProfileTestCase(APITestCase):
 
         self.assertEqual(profile['pic'], "{uid}_avatar.jpg".format(uid=self.user_profile.user.id))
 
-    def test_confirm_profile(self):
+    def test_upload_profile_confirmation(self):
         client = Client()
         client.force_login(self.user_profile.user)
 

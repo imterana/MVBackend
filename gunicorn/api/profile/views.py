@@ -23,8 +23,8 @@ def get_profile_by_id(user_id):
     return profile
 
 
-def save_file(file, directory):
-    with open(os.path.join(directory, file.name), 'wb+') as destination:
+def save_file(file, filename):
+    with open(filename, 'wb+') as destination:
         for chunk in file.chunks():
             destination.write(chunk)
 
@@ -51,11 +51,11 @@ def profile_update_picture(request):
     user = request.user
     image_file = request.FILES["image"]
     _, extension = os.path.splitext(image_file.name)
-    image_file.name = "{uid}_avatar{ext}".format(uid=user.id, ext=extension)
-    save_file(image_file, AVATARS_DIR)
+    filename = "{uid}_avatar{ext}".format(uid=user.id, ext=extension)
+    save_file(image_file, os.path.join(AVATARS_DIR, filename))
 
     profile = UserProfile.objects.filter(user=user).first()
-    profile.picture = image_file.name
+    profile.picture = filename
     profile.save()
     return APIResponse()
 
@@ -84,8 +84,8 @@ def profile_add_confirmation_image(request):
     user = request.user
     image_file = request.FILES["image"]
     _, extension = os.path.splitext(image_file.name)
-    image_file.name = "{uid}_confirmation{ext}".format(uid=user.id, ext=extension)
-    save_file(image_file, CONFIRMATIONS_DIR)
+    filename = "{uid}_confirmation{ext}".format(uid=user.id, ext=extension)
+    save_file(image_file, os.path.join(CONFIRMATIONS_DIR, filename))
     return APIResponse()
 
 
