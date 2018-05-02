@@ -3,5 +3,4 @@ postgres-data/
 
 # Static files
 
-images/avatars/*
-images/confirmations/*
+images/*

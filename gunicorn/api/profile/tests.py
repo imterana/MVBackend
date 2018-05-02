@@ -7,6 +7,8 @@ from ..misc.test import APITestCase
 
 from ..models import UserProfile
 
+import os
+
 TEST_FILES_DIR = "/usr/src/test_files/"
 
 
@@ -76,6 +78,13 @@ class UserProfileTestCase(APITestCase):
 
         self.assertEqual(new_bio, profile["bio"])
 
+    def test_update_profile_without_parameters(self):
+        client = Client()
+        client.force_login(self.user_profile.user)
+
+        response = client.post(reverse('update_profile_info'), {})
+        self.parseAndCheckResponseCode(response, ResponseCode.RESPONSE_MISSING_ARGUMENT)
+
     def test_find_profile_by_name(self):
         client = Client()
         client.force_login(self.user_profile.user)
@@ -140,7 +149,7 @@ class UserProfileTestCase(APITestCase):
         client = Client()
         client.force_login(self.user_profile.user)
 
-        filename = TEST_FILES_DIR + 'confirmation.jpg'
+        filename = os.path.join(TEST_FILES_DIR, 'confirmation.jpg')
         with open(filename, "rb") as file:
             response = client.post(reverse('upload_profile_confirmation'), {'name': 'test confirmation', 'image': file})
         self.parseAndCheckResponseCode(response, ResponseCode.RESPONSE_OK)

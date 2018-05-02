@@ -141,6 +141,5 @@ STATIC_ROOT = '/static/'
 STATIC_URL = '/static/'
 
 STATICFILES_DIRS = [
-    '/usr/src/avatars/',
-    '/usr/src/confirmations/'
+    '/usr/src/images/'
 ]

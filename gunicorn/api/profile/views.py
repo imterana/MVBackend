@@ -7,11 +7,12 @@ from ..misc.http_decorators import require_arguments, require_files
 from ..misc.response import (
     APIInvalidArgumentResponse,
     APIResponse,
+    APIMissingArgumentResponse
 )
 from ..models import UserProfile
 
-AVATARS_DIR = '/usr/src/avatars/'
-CONFIRMATIONS_DIR = '/usr/src/confirmations/'
+AVATARS_DIR = '/usr/src/images/avatars/'
+CONFIRMATIONS_DIR = '/usr/src/images/confirmations/'
 
 
 def get_profile_by_id(user_id):
@@ -62,6 +63,9 @@ def profile_update_picture(request):
 @require_POST
 @login_required
 def profile_update_info(request):
+    if 'display_name' not in request.POST and 'bio' not in request.POST:
+        return APIMissingArgumentResponse(error_msg="Bio or name are required")
+
     profile = UserProfile.objects.filter(user=request.user).first()
     if 'display_name' in request.POST:
         profile.user.username = request.POST['display_name']
@@ -75,7 +79,7 @@ def profile_update_info(request):
 @require_files(["image"])
 @require_POST
 @login_required
-def profile_confirm(request):
+def profile_add_confirmation_image(request):
     # TODO some notification for moderator to mark the user as confirmed
     user = request.user
     image_file = request.FILES["image"]
