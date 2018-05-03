@@ -2,8 +2,11 @@
 Preprocessing request POST OR GET parameters decorators
 """
 
-from .response import APIMissingArgumentResponse
-from .response import APIInvalidArgumentResponse
+
+from .response import (
+        APIMissingArgumentResponse,
+        APIInvalidArgumentResponse
+)
 
 
 def require_files(required):
@@ -34,7 +37,6 @@ def require_arguments(required):
     :param required: list with required parameters
     :return:
     """
-
     def decorator(func):
         def wrapper(request):
             request_params = get_dict_from_request(request)
@@ -42,9 +44,7 @@ def require_arguments(required):
                 if param not in request_params:
                     return APIMissingArgumentResponse(error_msg=param)
             return func(request)
-
         return wrapper
-
     return decorator
 
 
@@ -55,7 +55,6 @@ def cast_arguments(cast_dict):
     :param cast_dict: param_name in request -> cast function
     :return:
     """
-
     def decorator(func):
         def wrapper(request):
             request_params = get_dict_from_request(request)
@@ -65,14 +64,12 @@ def cast_arguments(cast_dict):
                     continue
                 try:
                     request_params[param] = cast_dict[param](
-                        request_params[param])
-                except ValueError:
-                    return APIInvalidArgumentResponse(error_msg=str(ValueError))
-            request.GET = request_params
+                                                request_params[param])
+                except (ValueError, TypeError) as e:
+                    return APIInvalidArgumentResponse(error_msg=str(e))
+            setattr(request, request.method, request_params)
             return func(request)
-
         return wrapper
-
     return decorator
 
 
