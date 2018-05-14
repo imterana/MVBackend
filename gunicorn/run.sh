@@ -1,5 +1,6 @@
 #! /bin/bash
 
+python wait_for_db.py &&
 python manage.py collectstatic --noinput && 
 python manage.py makemigrations && 
 python manage.py migrate && 

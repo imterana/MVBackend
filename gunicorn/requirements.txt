@@ -4,3 +4,6 @@ daphne
 psycopg2
 channels
 channels_redis
+asyncio
+pytest-django
+pytest-asyncio
