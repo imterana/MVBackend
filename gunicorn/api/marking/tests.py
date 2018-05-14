@@ -6,7 +6,7 @@ from .consumers import MarkingConsumer
 from ..models import Event
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
 class TestMarking(object):
     @classmethod
@@ -17,24 +17,26 @@ class TestMarking(object):
         user.save()
         cls.user = user
 
-    async def test_connection(self):
-        user = self.user
-
         event = Event(creator=user)
         event.save()
+        event.users.set([user])
+        event.save()
+        cls.event = event
 
-        communicator = WebsocketCommunicator(MarkingConsumer, "ws/marking?event_id={eid}".format(eid=event.uuid))
-        communicator.scope['user'] = user
-        connected, subprotocol = await communicator.connect()
+    async def test_connection(self):
+        communicator = WebsocketCommunicator(MarkingConsumer, "ws/marking?event_id={eid}".format(eid=self.event.uuid))
+        communicator.scope['user'] = self.user
+        connected, _ = await communicator.connect()
         assert connected
+
+        response = await communicator.receive_json_from()
+        assert response.get('marking_list') is not None
         await communicator.disconnect()
 
     async def test_connection_non_existing_event(self):
-        user = self.user
-
         communicator = WebsocketCommunicator(MarkingConsumer, "ws/marking?event_id={eid}".format(eid='non-existing'))
-        communicator.scope['user'] = user
-        connected, subprotocol = await communicator.connect()
+        communicator.scope['user'] = self.user
+        connected, _ = await communicator.connect()
         assert connected
 
         response = await communicator.receive_output()
@@ -42,13 +44,21 @@ class TestMarking(object):
         await communicator.disconnect()
 
     async def test_connection_no_event(self):
-        user = self.user
-
         communicator = WebsocketCommunicator(MarkingConsumer, "ws/marking")
-        communicator.scope['user'] = user
-        connected, subprotocol = await communicator.connect()
+        communicator.scope['user'] = self.user
+        connected, _ = await communicator.connect()
         assert connected
 
         response = await communicator.receive_output()
         assert response['type'] == 'websocket.close'
+        await communicator.disconnect()
+
+    async def test_prepare_to_mark(self):
+        communicator = WebsocketCommunicator(MarkingConsumer, "ws/marking?event_id={eid}".format(eid=self.event.uuid))
+        communicator.scope['user'] = self.user
+        connected, _ = await communicator.connect()
+        assert connected
+        await communicator.send_json_to({"message": "prepare_to_mark", 'params': {'user_id': 1234}})
+        response = await communicator.receive_json_from()
+        assert response == {'result': 'ok'}
         await communicator.disconnect()

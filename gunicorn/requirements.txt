@@ -7,3 +7,4 @@ channels_redis
 asyncio
 pytest-django
 pytest-asyncio
+redis
