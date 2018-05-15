@@ -58,6 +58,10 @@ class TestMarking(object):
         communicator.scope['user'] = self.user
         connected, _ = await communicator.connect()
         assert connected
+
+        response = await communicator.receive_json_from()
+        assert response.get('marking_list') is not None
+
         await communicator.send_json_to({"message": "prepare_to_mark", 'params': {'user_id': 1234}})
         response = await communicator.receive_json_from()
         assert response == {'result': 'ok'}
