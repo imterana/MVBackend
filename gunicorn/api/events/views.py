@@ -69,7 +69,8 @@ def event_list(request):
         events.append({"name": event.name,
                        "event_id": event.uuid,
                        "time_from": datetime_to_string(event.time_from),
-                       "time_to": datetime_to_string(event.time_to)})
+                       "time_to": datetime_to_string(event.time_to),
+                       "creator_id": event.creator.id})
     return APIResponse(response=events)
 
 
