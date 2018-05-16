@@ -1,20 +1,19 @@
+from datetime import datetime
+
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.views.decorators.http import require_GET, require_POST
 
-from datetime import datetime
-
 from .misc.time import datetime_to_string, datetime_from_string
-
-from ..models import Event
 from ..misc.http_decorators import require_arguments, cast_arguments
 from ..misc.response import (
-        APIInvalidArgumentResponse,
-        APINotPermittedResponse,
-        APIResponse,
-        APIUnknownErrorResponse,
+    APIInvalidArgumentResponse,
+    APINotPermittedResponse,
+    APIResponse,
+    APIUnknownErrorResponse,
 )
+from ..models import Event
 
 
 def get_event_by_uuid(uuid):
@@ -39,7 +38,7 @@ def event_create(request):
     time_to = request.POST["time_to"]
     if time_from > time_to:
         return APIInvalidArgumentResponse(
-                error_msg="time_from comes after time_to")
+            error_msg="time_from comes after time_to")
     if time_from < datetime.utcnow():
         return APIInvalidArgumentResponse(error_msg="time_from has passed")
     try:
@@ -72,6 +71,18 @@ def event_list(request):
                        "time_to": datetime_to_string(event.time_to),
                        "creator_id": event.creator.id})
     return APIResponse(response=events)
+
+
+@require_arguments(['event_id'])
+@require_GET
+def event_get_by_id(request):
+    event = get_event_by_uuid(request.GET['event_id'])
+
+    return APIResponse(response={"name": event.name,
+                                 "event_id": event.uuid,
+                                 "time_from": datetime_to_string(event.time_from),
+                                 "time_to": datetime_to_string(event.time_to),
+                                 "creator_id": event.creator.id})
 
 
 @require_arguments(["event_id"])

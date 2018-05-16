@@ -1,12 +1,10 @@
-from django.test import Client
-from django.contrib.auth.models import User
-from django.urls import reverse
-
-import json
 import datetime
 
-from .misc.time import datetime_to_string, datetime_from_string
+from django.contrib.auth.models import User
+from django.test import Client
+from django.urls import reverse
 
+from .misc.time import datetime_to_string
 from ..misc.response import ResponseCode
 from ..misc.test import APITestCase
 from ..models import Event
@@ -29,6 +27,23 @@ class EventTestCase(APITestCase):
         return client.post(reverse('create_event'), {'name': name,
                                                      'time_from': time_from,
                                                      'time_to': time_to})
+
+    def test_get_event_by_id(self):
+        client = Client()
+        client.force_login(self.user)
+
+        event_name = 'testevent'
+        response = self.create_event(client, event_name)
+        parsed = self.parseAndCheckResponseCode(response,
+                                                ResponseCode.RESPONSE_OK)
+
+        event_id = parsed["response"]["event_id"]
+
+        response = client.get(reverse('get_event_by_id'), {'event_id': event_id})
+        parsed = self.parseAndCheckResponseCode(response,
+                                                ResponseCode.RESPONSE_OK)
+        event = parsed['response']
+        self.assertEqual(event_name, event['name'])
 
     def test_create_delete_event(self):
         client = Client()
@@ -168,8 +183,8 @@ class EventTestCase(APITestCase):
         client.force_login(self.user)
         response = client.post(reverse('delete_event'), {'event_id': event_id})
         parsed = self.parseAndCheckResponseCode(
-                response,
-                ResponseCode.RESPONSE_NOT_PERMITTED
+            response,
+            ResponseCode.RESPONSE_NOT_PERMITTED
         )
 
     def test_leave_not_joined_event(self):
@@ -189,8 +204,8 @@ class EventTestCase(APITestCase):
 
         response = client.post(reverse('leave_event'), {'event_id': event_id})
         parsed = self.parseAndCheckResponseCode(
-                response,
-                ResponseCode.RESPONSE_NOT_PERMITTED
+            response,
+            ResponseCode.RESPONSE_NOT_PERMITTED
         )
 
     def test_create_duplicate_event(self):
@@ -201,8 +216,8 @@ class EventTestCase(APITestCase):
         response = self.create_event(client, event_name)
         response = self.create_event(client, event_name)
         self.parseAndCheckResponseCode(
-                response,
-                ResponseCode.RESPONSE_UNKNOWN_ERROR,
+            response,
+            ResponseCode.RESPONSE_UNKNOWN_ERROR,
         )
 
     def test_filter_by_name(self):
@@ -271,8 +286,8 @@ class EventTestCase(APITestCase):
         self.parseAndCheckResponseCode(response,
                                        ResponseCode.RESPONSE_NOT_PERMITTED)
 
-        event.time_to = datetime.datetime.utcnow() +\
-            datetime.timedelta(hours=12)
+        event.time_to = datetime.datetime.utcnow() + \
+                        datetime.timedelta(hours=12)
         event.save()
 
         response = client.post(reverse('join_event'), {'event_id': event_id})
