@@ -22,3 +22,8 @@ def add_to_list(listname, value):
 def get_list(listname):
     r = redis.Redis(connection_pool=ConnectionPool())
     return r.lrange(listname, 0, r.llen(listname))
+
+
+def remove_from_list(listname, value):
+    r = redis.Redis(connection_pool=ConnectionPool())
+    r.lrem(listname, value, 0)

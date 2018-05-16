@@ -25,6 +25,26 @@ def retrieve_event_id(query_string):
     return event_id[0].decode('utf-8')
 
 
+def require_param(required):
+    """
+    Decorator for methods with dictionary input.
+    Checks requests parameters for presence.
+    :param required: list with required files
+    :return:
+    """
+
+    def decorator(func):
+        def wrapper(self, params):
+            for param in required:
+                if param not in params:
+                    return
+            return func(self, params)
+
+        return wrapper
+
+    return decorator
+
+
 class MarkingConsumer(JsonWebsocketConsumer):
     messages = ['prepare_to_mark', 'confirm_marking', 'refuse_marking']
 
@@ -59,35 +79,18 @@ class MarkingConsumer(JsonWebsocketConsumer):
 
         async_to_sync(self.channel_layer.group_add)("event{}".format(event_id), self.channel_name)
         storage.add_to_list("ready_to_mark_{}".format(event_id), user.id)
-        print(list(self.marking_list))
         self.send_json({"result": 'ok', "marking_list": marking_list})
 
     def disconnect(self, close_code):
         if self.event is not None:
             async_to_sync(self.channel_layer.group_discard)("event_{}".format(self.event.uuid), self.channel_name)
-            # TODO remove from redis
+            storage.remove_from_list("ready_to_mark_{}".format(self.event.uuid), self.scope['user'].id)
 
     def receive_json(self, content, **kwargs):
-        print(content)
         if content["message"] in self.messages:
             getattr(self, content["message"])(content.get("params"))
         else:
             self.send_json({"error": "No message"})
-
-    def add_user(self, params):
-        user_id = params.get('user_id')
-        if user_id is None:
-            return
-        print(user_id)
-        self.marking_list.add(user_id)
-        self.send_json({'message': 'user_joined', "params": {'user_id': user_id}})
-
-    def remove_user(self, params):
-        user_id = params.get('user_id')
-        if user_id is None:
-            return
-        self.marking_list.remove(user_id)
-        self.send_json({'message': 'user_left', "params": {'user_id': 1234}})
 
     def prepare_to_mark(self, params):
         user_id = params.get('user_id')
@@ -95,13 +98,15 @@ class MarkingConsumer(JsonWebsocketConsumer):
             self.send_json({"result": "denial"})
             return
 
+        storage.remove_from_list("mark_me_{}".format(self.event.uuid), user_id)
         async_to_sync(self.channel_layer.group_send)(
             "event_{}".format(self.event.uuid),
             {
-                'type': 'remove.user',
+                'type': 'group.do.not.mark',
                 "params": {"user_id": user_id}
             }
         )
+
         self.prepared_user_id = user_id
         self.send_json({"result": "ok"})
 
@@ -114,7 +119,7 @@ class MarkingConsumer(JsonWebsocketConsumer):
         async_to_sync(self.channel_layer.group_send)(
             "event_{}".format(self.event.uuid),
             {
-                'type': 'marked',
+                'type': 'group.marked',
                 "params": {"user_id": user_id}
             }
         )
@@ -122,22 +127,34 @@ class MarkingConsumer(JsonWebsocketConsumer):
         self.prepared_user_id = None
         self.send_json({"result": "ok"})
 
-    def marked(self, params):
-        pass
-
     def refuse_marking(self, params):
         user_id = params.get('user_id')
         if user_id is None or self.prepared_user_id != user_id:
             return
+
+        storage.add_to_list("mark_me_{}".format(self.event.uuid), user_id)
         async_to_sync(self.channel_layer.group_send)(
             "event_{}".format(self.event.uuid),
             {
-                'type': 'add.user',
+                'type': 'group.mark.me',
                 "params": {"user_id": self.prepared_user_id}
             }
         )
         self.prepared_user_id = None
         self.send_json({"result": "ok"})
+
+    def group_marked(self, params):
+        pass
+
+    @require_param('user_id')
+    def group_mark_me(self, params):
+        self.marking_list.add(params['user_id'])
+        self.send_json({'message': 'user_joined', "params": {'user_id': params['user_id']}})
+
+    @require_param('user_id')
+    def group_do_not_mark(self, params):
+        self.marking_list.remove(params['user_id'])
+        self.send_json({'message': 'user_left', "params": {'user_id': params['user_id']}})
 
 
 class MarkMeConsumer(JsonWebsocketConsumer):
@@ -168,24 +185,27 @@ class MarkMeConsumer(JsonWebsocketConsumer):
         async_to_sync(self.channel_layer.group_send)(
             "event_{}".format(event_id),
             {
-                'type': 'add.user',
+                'type': 'group.mark.me',
                 "params": {"user_id": user.id}
             }
         )
-        print(user.id)
+
         storage.add_to_list("mark_me_{}".format(event_id), user.id)
         self.event = event
         self.accept()
 
-    def add_user(self, event):
+    def group_mark_me(self, params):
         pass
 
-    def marked(self, params):
-        user_id = params.get('user_id')
-        if user_id is None or user_id != self.scope['user'].id:
+    def group_do_not_mark(self, params):
+        pass
+
+    @require_param("user_id")
+    def group_marked(self, params):
+        if params['user_id'] != self.scope['user'].id:
             return
-        self.send_json({"message": "marked", "params": {'user_id': 1234}})
-        # TODO: check if responce is needed
+        self.send_json({"message": "marked", "params": {'user_id': params['user_id']}})
+        # TODO: check if responce before close is needed
         self.close()
 
     def disconnect(self, code):

@@ -15,8 +15,12 @@ def create_user(username):
 
 
 @pytest.mark.django_db(transaction=True)
-def create_event(creator):
+def create_event(creator, time_from=None, time_to=None):
     event = Event(creator=creator)
+    if time_to is not None:
+        event.time_to = time_to
+    if time_from is not None:
+        event.time_from = time_from
     event.save()
     event.users.set([creator])
     event.save()
@@ -76,6 +80,9 @@ class TestMarking(object):
         assert response == {'result': 'ok'}
         await communicator.disconnect()
 
+    async def test_connection_past_event(self):
+        pass
+
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
@@ -92,3 +99,17 @@ class TestMarkMe(object):
         connected, _ = await communicator.connect()
         assert connected
         await communicator.disconnect()
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+class TestInteraction(object):
+    @classmethod
+    @pytest.fixture(autouse=True)
+    def setup_class(cls):
+        cls.mark_me_user = create_user("mark_me_test_user")
+        cls.ready_to_mark_user = create_user("ready_to_mark_test_user")
+        cls.event = create_event(cls.ready_to_mark_user)
+
+    async def test_mark_me_first(self):
+        pass
