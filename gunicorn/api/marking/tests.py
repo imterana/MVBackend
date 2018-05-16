@@ -6,6 +6,8 @@ from .consumers import MarkingConsumer, MarkMeConsumer
 from ..models import Event
 
 
+from datetime import datetime
+
 @pytest.mark.django_db(transaction=True)
 def create_user(username):
     user = User(username=username)
@@ -81,7 +83,18 @@ class TestMarking(object):
         await communicator.disconnect()
 
     async def test_connection_past_event(self):
-        pass
+        event = create_event(creator=self.user,
+                             time_from=datetime.now().timestamp() - 1000,
+                             time_to= datetime.now().timestamp() - 10)
+
+        communicator = WebsocketCommunicator(MarkingConsumer, "ws/marking?event_id={eid}".format(eid=event.uuid))
+        communicator.scope['user'] = self.user
+        connected, _ = await communicator.connect()
+        assert connected
+
+        response = await communicator.receive_output()
+        assert response['type'] == 'websocket.close'
+        await communicator.disconnect()
 
 
 @pytest.mark.django_db(transaction=True)

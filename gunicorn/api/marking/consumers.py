@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 
 from .storage import storage
 from ..models import Event
-
+from datetime import datetime
 
 def get_event_by_uuid(uuid):
     try:
@@ -62,6 +62,11 @@ class MarkingConsumer(JsonWebsocketConsumer):
 
         event = get_event_by_uuid(event_id)
         if event is None:
+            self.send_json({"error": "Invalid event"})
+            self.close()
+            return
+
+        if event.time_from > datetime.now() or event.time_to < datetime.now():
             self.send_json({"error": "Invalid event"})
             self.close()
             return
