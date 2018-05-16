@@ -2,10 +2,11 @@
 Preprocessing request POST OR GET parameters decorators
 """
 
-
 from .response import (
-        APIMissingArgumentResponse,
-        APIInvalidArgumentResponse
+    APIMissingArgumentResponse,
+    APIInvalidArgumentResponse,
+    APIUnsupportedMediaTypeResponse,
+    APINotPermittedResponse
 )
 
 
@@ -37,6 +38,7 @@ def require_arguments(required):
     :param required: list with required parameters
     :return:
     """
+
     def decorator(func):
         def wrapper(request):
             request_params = get_dict_from_request(request)
@@ -44,7 +46,9 @@ def require_arguments(required):
                 if param not in request_params:
                     return APIMissingArgumentResponse(error_msg=param)
             return func(request)
+
         return wrapper
+
     return decorator
 
 
@@ -55,6 +59,7 @@ def cast_arguments(cast_dict):
     :param cast_dict: param_name in request -> cast function
     :return:
     """
+
     def decorator(func):
         def wrapper(request):
             request_params = get_dict_from_request(request)
@@ -64,12 +69,14 @@ def cast_arguments(cast_dict):
                     continue
                 try:
                     request_params[param] = cast_dict[param](
-                                                request_params[param])
+                        request_params[param])
                 except (ValueError, TypeError) as e:
                     return APIInvalidArgumentResponse(error_msg=str(e))
             setattr(request, request.method, request_params)
             return func(request)
+
         return wrapper
+
     return decorator
 
 
@@ -85,3 +92,27 @@ def get_dict_from_request(request):
         return request.POST
     else:
         raise NotImplemented
+
+
+def require_content_type(required_type):
+    """
+    Decorator for views with GET or POST requests that require certain content type.
+    Performs overwriting equest.GET or request.POST dictionaries with parsed content.
+    :param required_type: expected content type
+    :return:
+    """
+    def decorator(func):
+        def wrapper(request):
+            if not hasattr(request, required_type):
+                return APIUnsupportedMediaTypeResponse(error_msg="{} content expected".format(required_type))
+            if request.method == 'GET':
+                request.GET = getattr(request, required_type)
+            elif request.method == 'POST':
+                request.POST = getattr(request, required_type)
+            else:
+                return APINotPermittedResponse(error_msg="Not permitted request type")
+            return func(request)
+
+        return wrapper
+
+    return decorator

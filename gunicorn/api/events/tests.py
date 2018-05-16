@@ -1,12 +1,11 @@
-from django.test import Client
+import datetime
+import json
+
 from django.contrib.auth.models import User
+from django.test import Client
 from django.urls import reverse
 
-import json
-import datetime
-
-from .misc.time import datetime_to_string, datetime_from_string
-
+from .misc.time import datetime_to_string
 from ..misc.response import ResponseCode
 from ..misc.test import APITestCase
 from ..models import Event
@@ -26,9 +25,10 @@ class EventTestCase(APITestCase):
         time_to = time_from + datetime.timedelta(hours=1)
         time_from = datetime_to_string(time_from)
         time_to = datetime_to_string(time_to)
-        return client.post(reverse('create_event'), {'name': name,
-                                                     'time_from': time_from,
-                                                     'time_to': time_to})
+        return client.post(reverse('create_event'), json.dumps({'name': name,
+                                                                'time_from': time_from,
+                                                                'time_to': time_to}),
+                           content_type='application/json', format='json')
 
     def test_create_delete_event(self):
         client = Client()
@@ -40,7 +40,7 @@ class EventTestCase(APITestCase):
                                                 ResponseCode.RESPONSE_OK)
         event_id = parsed["response"]["event_id"]
 
-        response = client.get(reverse('get_events'))
+        response = client.get(reverse('get_events'), content_type='application/json')
         parsed = self.parseAndCheckResponseCode(response,
                                                 ResponseCode.RESPONSE_OK)
         self.assertEqual(1, len(parsed["response"]))
@@ -48,7 +48,8 @@ class EventTestCase(APITestCase):
         self.assertEqual(event_id, event["event_id"])
         self.assertEqual(event_name, event["name"])
 
-        response = client.post(reverse('delete_event'), {'event_id': event_id})
+        response = client.post(reverse('delete_event'), json.dumps({'event_id': str(event_id)}),
+                               content_type='application/json')
         self.parseAndCheckResponseCode(response,
                                        ResponseCode.RESPONSE_OK)
 
@@ -84,7 +85,8 @@ class EventTestCase(APITestCase):
         self.assertEqual(event_name, event["name"])
         self.assertEqual(event_id, event["event_id"])
 
-        response = client.post(reverse('leave_event'), {'event_id': event_id})
+        response = client.post(reverse('leave_event'), json.dumps({'event_id': event_id}),
+                               content_type='application/json')
         self.parseAndCheckResponseCode(response,
                                        ResponseCode.RESPONSE_OK)
 
@@ -111,9 +113,10 @@ class EventTestCase(APITestCase):
                                                 ResponseCode.RESPONSE_OK)
         event_id = parsed["response"]["event_id"]
 
-        client.post(reverse('leave_event'), {'event_id': event_id})
+        client.post(reverse('leave_event'), json.dumps({'event_id': event_id}), content_type='application/json')
 
-        response = client.post(reverse('join_event'), {'event_id': event_id})
+        response = client.post(reverse('join_event'), json.dumps({'event_id': event_id}),
+                               content_type='application/json')
         self.parseAndCheckResponseCode(response,
                                        ResponseCode.RESPONSE_OK)
 
@@ -127,14 +130,16 @@ class EventTestCase(APITestCase):
                                                 ResponseCode.RESPONSE_OK)
         event_id = parsed["response"]["event_id"]
 
-        response = client.post(reverse('join_event'), {'event_id': event_id})
+        response = client.post(reverse('join_event'), json.dumps({'event_id': event_id}),
+                               content_type='application/json')
         self.parseAndCheckResponseCode(response,
                                        ResponseCode.RESPONSE_NOT_PERMITTED)
 
     def test_delete_nonexisting_event(self):
         client = Client()
         client.force_login(self.user)
-        response = client.post(reverse('delete_event'), {'event_id': 'none'})
+        response = client.post(reverse('delete_event'), json.dumps({'event_id': 'none'}),
+                               content_type='application/json')
         self.parseAndCheckResponseCode(response,
                                        ResponseCode.RESPONSE_INVALID_ARGUMENT)
 
@@ -148,7 +153,7 @@ class EventTestCase(APITestCase):
     def test_leave_nonexisting_event(self):
         client = Client()
         client.force_login(self.user)
-        response = client.post(reverse('join_event'), {'event_id': 'none'})
+        response = client.post(reverse('join_event'), json.dumps({'event_id': 'none'}), content_type='application/json')
         self.parseAndCheckResponseCode(response,
                                        ResponseCode.RESPONSE_INVALID_ARGUMENT)
 
@@ -166,10 +171,11 @@ class EventTestCase(APITestCase):
 
         client = Client()
         client.force_login(self.user)
-        response = client.post(reverse('delete_event'), {'event_id': event_id})
+        response = client.post(reverse('delete_event'), json.dumps({'event_id': event_id}),
+                               content_type='application/json')
         parsed = self.parseAndCheckResponseCode(
-                response,
-                ResponseCode.RESPONSE_NOT_PERMITTED
+            response,
+            ResponseCode.RESPONSE_NOT_PERMITTED
         )
 
     def test_leave_not_joined_event(self):
@@ -187,10 +193,11 @@ class EventTestCase(APITestCase):
         client = Client()
         client.force_login(self.user)
 
-        response = client.post(reverse('leave_event'), {'event_id': event_id})
+        response = client.post(reverse('leave_event'), json.dumps({'event_id': event_id}),
+                               content_type='application/json')
         parsed = self.parseAndCheckResponseCode(
-                response,
-                ResponseCode.RESPONSE_NOT_PERMITTED
+            response,
+            ResponseCode.RESPONSE_NOT_PERMITTED
         )
 
     def test_create_duplicate_event(self):
@@ -201,8 +208,8 @@ class EventTestCase(APITestCase):
         response = self.create_event(client, event_name)
         response = self.create_event(client, event_name)
         self.parseAndCheckResponseCode(
-                response,
-                ResponseCode.RESPONSE_UNKNOWN_ERROR,
+            response,
+            ResponseCode.RESPONSE_UNKNOWN_ERROR,
         )
 
     def test_filter_by_name(self):
@@ -240,16 +247,18 @@ class EventTestCase(APITestCase):
         time_from = datetime_to_string(time_from)
         time_to = datetime_to_string(time_to)
 
-        response = client.post(reverse('create_event'), {'name': event_name,
-                                                         'time_from': time_from,
-                                                         'time_to': time_to})
+        response = client.post(reverse('create_event'), json.dumps({'name': event_name,
+                                                                    'time_from': time_from,
+                                                                    'time_to': time_to}),
+                               content_type='Application/json')
 
         self.parseAndCheckResponseCode(response,
                                        ResponseCode.RESPONSE_INVALID_ARGUMENT)
 
-        response = client.post(reverse('create_event'), {'name': event_name,
-                                                         'time_from': time_to,
-                                                         'time_to': time_from})
+        response = client.post(reverse('create_event'), json.dumps({'name': event_name,
+                                                                    'time_from': time_to,
+                                                                    'time_to': time_from}),
+                               content_type='application/json')
 
         self.parseAndCheckResponseCode(response,
                                        ResponseCode.RESPONSE_INVALID_ARGUMENT)
@@ -267,15 +276,17 @@ class EventTestCase(APITestCase):
         event.save()
         event_id = event.uuid
 
-        response = client.post(reverse('join_event'), {'event_id': event_id})
+        response = client.post(reverse('join_event'), json.dumps({'event_id': str(event_id)}),
+                               content_type='application/json')
         self.parseAndCheckResponseCode(response,
                                        ResponseCode.RESPONSE_NOT_PERMITTED)
 
-        event.time_to = datetime.datetime.utcnow() +\
-            datetime.timedelta(hours=12)
+        event.time_to = datetime.datetime.utcnow() + \
+                        datetime.timedelta(hours=12)
         event.save()
 
-        response = client.post(reverse('join_event'), {'event_id': event_id})
+        response = client.post(reverse('join_event'),
+                               json.dumps({'event_id': str(event_id)}), content_type='application/json')
         self.parseAndCheckResponseCode(response,
                                        ResponseCode.RESPONSE_NOT_PERMITTED)
 
@@ -293,7 +304,8 @@ class EventTestCase(APITestCase):
         event.save()
         event_id = event.uuid
 
-        response = client.post(reverse('leave_event'), {'event_id': event_id})
+        response = client.post(reverse('leave_event'), json.dumps({'event_id': str(event_id)}),
+                               content_type='application/json')
         self.parseAndCheckResponseCode(response,
                                        ResponseCode.RESPONSE_NOT_PERMITTED)
 
@@ -311,6 +323,7 @@ class EventTestCase(APITestCase):
         event.save()
         event_id = event.uuid
 
-        response = client.post(reverse('leave_event'), {'event_id': event_id})
+        response = client.post(reverse('leave_event'), json.dumps({'event_id': str(event_id)}),
+                               content_type='application/json')
         self.parseAndCheckResponseCode(response,
                                        ResponseCode.RESPONSE_NOT_PERMITTED)
