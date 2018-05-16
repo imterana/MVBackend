@@ -48,15 +48,14 @@ def profile_get(request):
 
 
 @require_content_type('json')
-@require_arguments(["image"])
+@require_arguments(["image", "name"])
 @require_POST
 @login_required
 def profile_update_picture(request):
     print(request)
     user = request.user
-    image_file = request.POST["image"]
-    image_file = base64.decodebytes(image_file)
-    _, extension = os.path.splitext(image_file.name)
+    image_file = base64.decodebytes(request.POST["image"])
+    _, extension = os.path.splitext(request.POST["name"])
     filename = "{uid}_avatar{ext}".format(uid=user.id, ext=extension)
     save_file(image_file, os.path.join(AVATARS_DIR, filename))
 
@@ -82,14 +81,14 @@ def profile_update_info(request):
     return APIResponse()
 
 
-@require_files(["image"])
+@require_arguments(["image", "name"])
 @require_POST
 @login_required
 def profile_add_confirmation_image(request):
     # TODO some notification for moderator to mark the user as confirmed
     user = request.user
-    image_file = request.FILES["image"]
-    _, extension = os.path.splitext(image_file.name)
+    image_file = base64.decodebytes(request.POST["image"])
+    _, extension = os.path.splitext(request.POST["name"])
     filename = "{uid}_confirmation{ext}".format(uid=user.id, ext=extension)
     save_file(image_file, os.path.join(CONFIRMATIONS_DIR, filename))
     return APIResponse()

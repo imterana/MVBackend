@@ -145,7 +145,7 @@ class UserProfileTestCase(APITestCase):
         with open(filename, "rb") as file:
             response = client.post(reverse('update_profile_picture'),
                                    json.dumps({'name': 'test avatar',
-                                               'image': str(base64.encodebytes(file.read()))
+                                               'image': file.read()
                                                }),
                                    content_type='application/json')
         print(response)
