@@ -8,6 +8,7 @@ class JsonMiddleware:
     def __call__(self, request):
         if request.method == 'GET':
             request.json = request.GET
+            print(request.GET)
         elif request.content_type.lower() == 'application/json':
             request.json = json.loads(request.body)
         response = self.get_response(request)

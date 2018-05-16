@@ -95,6 +95,7 @@ def profile_add_confirmation_image(request):
     return APIResponse()
 
 
+@require_content_type('json')
 @require_GET
 def profile_find_by_name(request):
     if 'display_name_part' in request.GET:
