@@ -167,25 +167,22 @@ class TestInteraction(object):
         cls.event.users.add(cls.mark_me_user)
         cls.event.save()
 
-    async def test_mark_me_first(self):
-        mark_me_comm = WebsocketCommunicator(MarkMeConsumer,
-                                             "ws/mark_me?event_id={eid}".format(eid=self.event.uuid))
-        mark_me_comm.scope['user'] = self.mark_me_user
-        connected, _ = await mark_me_comm.connect()
+    async def connect(self, user_type):
+        if user_type == "mark_me":
+            communicator = WebsocketCommunicator(MarkMeConsumer,
+                                                 "ws/mark_me?event_id={eid}".format(eid=self.event.uuid))
+            communicator.scope['user'] = self.mark_me_user
+        elif user_type == "ready_to_mark":
+            communicator = WebsocketCommunicator(MarkingConsumer,
+                                                 "ws/marking?event_id={eid}".format(eid=self.event.uuid))
+            communicator.scope['user'] = self.ready_to_mark_user
+        else:
+            raise NotImplementedError
+        connected, _ = await communicator.connect()
         assert connected
+        return communicator
 
-        ready_to_mark_comm = WebsocketCommunicator(MarkingConsumer,
-                                                   "ws/marking?event_id={eid}".format(eid=self.event.uuid))
-        ready_to_mark_comm.scope['user'] = self.ready_to_mark_user
-        connected, _ = await ready_to_mark_comm.connect()
-        assert connected
-
-        response = await ready_to_mark_comm.receive_json_from()
-        marking_list = response.get('marking_list')
-        assert marking_list is not None
-        assert len(marking_list) == 1
-        assert marking_list[0] == self.mark_me_user.id
-
+    async def assert_successful_marking(self, mark_me_comm, ready_to_mark_comm):
         await ready_to_mark_comm.send_json_to(
             {"message": "prepare_to_mark", 'params': {'user_id': self.mark_me_user.id}})
         response = await ready_to_mark_comm.receive_json_from()
@@ -198,13 +195,43 @@ class TestInteraction(object):
 
         response = await mark_me_comm.receive_json_from()
         message = response.get('message')
-        assert message is not None
-        params = response.get('params')
-        assert params is not None
-        marked_user_id = params.get('user_id')
-        assert marked_user_id is not None
+        assert message == "marked"
 
-        assert marked_user_id == self.ready_to_mark_user.id
+        params = response.get('params')
+        assert params == {'user_id': self.ready_to_mark_user.id}
+
+    async def test_mark_me_first(self):
+        mark_me_comm = await self.connect("mark_me")
+        ready_to_mark_comm = await self.connect("ready_to_mark")
+
+        response = await ready_to_mark_comm.receive_json_from()
+        marking_list = response.get('marking_list')
+        assert marking_list is not None
+        assert len(marking_list) == 1
+        assert marking_list[0] == self.mark_me_user.id
+
+        await self.assert_successful_marking(mark_me_comm=mark_me_comm, ready_to_mark_comm=ready_to_mark_comm)
+
+        await mark_me_comm.disconnect()
+        await ready_to_mark_comm.disconnect()
+
+    async def test_ready_to_mark_first(self):
+        ready_to_mark_comm = await self.connect("ready_to_mark")
+
+        response = await ready_to_mark_comm.receive_json_from()
+        marking_list = response.get('marking_list')
+        assert marking_list is not None
+        assert len(marking_list) == 0
+
+        mark_me_comm = await self.connect("mark_me")
+
+        response = await ready_to_mark_comm.receive_json_from()
+        message = response.get('message')
+        assert message == "user_joined"
+        params = response.get('params')
+        assert params == {'user_id': self.mark_me_user.id}
+
+        await self.assert_successful_marking(mark_me_comm=mark_me_comm, ready_to_mark_comm=ready_to_mark_comm)
 
         await mark_me_comm.disconnect()
         await ready_to_mark_comm.disconnect()

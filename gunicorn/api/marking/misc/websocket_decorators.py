@@ -8,12 +8,15 @@ def require_group_message_param(required):
 
     def decorator(func):
         def wrapper(self, event):
+            print(event)
             params = event.get('params')
             if params is None:
+                print("params is none")
                 return
 
             for param in required:
                 if param not in params:
+                    print(param, "not in", params)
                     return
             return func(self, params)
 

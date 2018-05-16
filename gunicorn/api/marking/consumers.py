@@ -67,7 +67,7 @@ class MarkingConsumer(JsonWebsocketConsumer):
         self.marking_list = set(marking_list)
         self.event = event
 
-        async_to_sync(self.channel_layer.group_add)("event{}".format(event_id), self.channel_name)
+        async_to_sync(self.channel_layer.group_add)("event_{}".format(event_id), self.channel_name)
         storage.add_to_list("ready_to_mark_{}".format(event_id), user.id)
         self.send_json({"result": 'ok', "marking_list": [int(o.decode('utf-8')) for o in marking_list]})
 
@@ -129,7 +129,7 @@ class MarkingConsumer(JsonWebsocketConsumer):
         async_to_sync(self.channel_layer.group_send)(
             "event_{}".format(self.event.uuid),
             {
-                'type': 'group.mark.me',
+                'type': 'group.mar.kme',
                 "params": {"user_id": self.prepared_user_id}
             }
         )
@@ -146,7 +146,12 @@ class MarkingConsumer(JsonWebsocketConsumer):
 
     @require_group_message_param(["user_id"])
     def group_do_not_mark(self, params):
-        self.marking_list.remove(params['user_id'])
+        if params['user_id'] == self.prepared_user_id:
+            return
+        try:
+            self.marking_list.remove(params['user_id'])
+        except KeyError:
+            return
         self.send_json({'message': 'user_left', "params": {'user_id': params['user_id']}})
 
 
