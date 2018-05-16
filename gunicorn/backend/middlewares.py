@@ -6,8 +6,9 @@ class JsonMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-
-        if request.content_type.lower() == 'application/json':
+        if request.method == 'GET':
+            request.json = request.GET
+        elif request.content_type.lower() == 'application/json':
             request.json = json.loads(request.body)
         response = self.get_response(request)
         return response

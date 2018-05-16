@@ -1,4 +1,5 @@
 import os
+import base64
 
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
@@ -30,6 +31,7 @@ def save_file(file, filename):
             destination.write(chunk)
 
 
+@require_content_type('json')
 @require_arguments(["user_id"])
 @require_GET
 @login_required
@@ -45,12 +47,15 @@ def profile_get(request):
                                  "karma": profile.karma})
 
 
-@require_files(["image"])
+@require_content_type('json')
+@require_arguments(["image"])
 @require_POST
 @login_required
 def profile_update_picture(request):
+    print(request)
     user = request.user
-    image_file = request.FILES["image"]
+    image_file = request.POST["image"]
+    image_file = base64.decodebytes(image_file)
     _, extension = os.path.splitext(image_file.name)
     filename = "{uid}_avatar{ext}".format(uid=user.id, ext=extension)
     save_file(image_file, os.path.join(AVATARS_DIR, filename))

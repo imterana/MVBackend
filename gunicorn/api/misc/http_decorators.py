@@ -101,6 +101,7 @@ def require_content_type(required_type):
     :param required_type: expected content type
     :return:
     """
+
     def decorator(func):
         def wrapper(request):
             if not hasattr(request, required_type):
