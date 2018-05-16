@@ -1,9 +1,10 @@
 import os
+
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.views.decorators.http import require_GET, require_POST
 
-from ..misc.http_decorators import require_arguments, require_files
+from ..misc.http_decorators import require_arguments, require_files, require_content_type
 from ..misc.response import (
     APIInvalidArgumentResponse,
     APIResponse,
@@ -60,6 +61,7 @@ def profile_update_picture(request):
     return APIResponse()
 
 
+@require_content_type('json')
 @require_POST
 @login_required
 def profile_update_info(request):
