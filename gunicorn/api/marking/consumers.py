@@ -70,7 +70,7 @@ class MarkingConsumer(JsonWebsocketConsumer):
 
         async_to_sync(self.channel_layer.group_add)("event_{}".format(event_id), self.channel_name)
         storage.add_to_list("ready_to_mark_{}".format(event_id), user.id)
-        self.send_json({"message": 'marking_list', "marking_list": marking_list})
+        self.send_json({"message": 'marking_list', "params": {"marking_list": marking_list}})
 
     def disconnect(self, close_code):
         if self.event is not None:
