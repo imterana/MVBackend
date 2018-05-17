@@ -170,27 +170,21 @@ class MarkMeConsumer(JsonWebsocketConsumer):
         self.event = None
 
     def connect(self):
-        print("mm0")
         event_id = retrieve_event_id(self.scope['query_string'])
         if event_id is None:
-            self.send_json({"result": "error", "error_msg": "No event id"}, close=True)
+            self.close()
             return
-        print("mm1")
         event = get_event_by_uuid(event_id)
         if event is None:
-            self.send_json({"result": "error", "error_msg": "Invalid event"})
             self.close()
             return
         self.event = event
-        print("mm2")
 
         user = self.scope['user']
         if user not in event.users.all():
-            self.send_json({"result": "error", "error_msg": "You are not in the event"}, close=True)
+            self.close()
             return
 
-
-        print("mm3", event_id)
         async_to_sync(self.channel_layer.group_add)("event_{}".format(event_id), self.channel_name)
         async_to_sync(self.channel_layer.group_send)(
             "event_{}".format(event_id),
@@ -202,7 +196,6 @@ class MarkMeConsumer(JsonWebsocketConsumer):
         )
 
         storage.add_to_list("mark_me_{}".format(event_id), user.id)
-        print("mm", event_id)
         self.accept()
 
     def group_mark_me(self, params):
