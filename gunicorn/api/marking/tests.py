@@ -205,10 +205,11 @@ class TestInteraction(object):
         ready_to_mark_comm = await self.connect("ready_to_mark")
 
         response = await ready_to_mark_comm.receive_json_from()
-        marking_list = response.get('marking_list')
-        assert marking_list is not None
-        assert len(marking_list) == 1
-        assert marking_list[0] == self.mark_me_user.id
+        message = response.get('message')
+        assert message == 'marking_list'
+        params = response.get('params')
+        marking_list = params.get('marking_list')
+        assert marking_list == [self.mark_me_user.id]
 
         await self.assert_successful_marking(mark_me_comm=mark_me_comm, ready_to_mark_comm=ready_to_mark_comm)
 
@@ -219,9 +220,11 @@ class TestInteraction(object):
         ready_to_mark_comm = await self.connect("ready_to_mark")
 
         response = await ready_to_mark_comm.receive_json_from()
-        marking_list = response.get('marking_list')
-        assert marking_list is not None
-        assert len(marking_list) == 0
+        message = response.get('message')
+        assert message == 'marking_list'
+        params = response.get('params')
+        marking_list = params.get('marking_list')
+        assert marking_list == []
 
         mark_me_comm = await self.connect("mark_me")
 
@@ -241,7 +244,10 @@ class TestInteraction(object):
         ready_to_mark_comm = await self.connect("ready_to_mark")
 
         response = await ready_to_mark_comm.receive_json_from()
-        marking_list = response.get('marking_list')
+        message = response.get('message')
+        assert message == 'marking_list'
+        params = response.get('params')
+        marking_list = params.get('marking_list')
         assert marking_list == [self.mark_me_user.id]
 
         await ready_to_mark_comm.send_json_to(
@@ -281,7 +287,10 @@ class TestInteraction(object):
         ready_to_mark_comm = await self.connect("ready_to_mark")
         response = await ready_to_mark_comm.receive_json_from()
         print(response)
-        marking_list = response.get('marking_list')
+        message = response.get('message')
+        assert message == 'marking_list'
+        params = response.get('params')
+        marking_list = params.get('marking_list')
         assert set(marking_list) == {mark_me_user1.id, mark_me_user2.id}
 
         # Refuse marking mark_me_user1
