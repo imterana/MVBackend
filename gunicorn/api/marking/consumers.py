@@ -57,9 +57,6 @@ class MarkingConsumer(JsonWebsocketConsumer):
             return
 
         user = self.scope['user']
-        if user not in event.users.all():
-            self.send_json({"result": "error", "error_msg": "You are not in the event"}, close=True)
-            return
 
         self.accept()
 
@@ -181,9 +178,6 @@ class MarkMeConsumer(JsonWebsocketConsumer):
         self.event = event
 
         user = self.scope['user']
-        if user not in event.users.all():
-            self.close()
-            return
 
         async_to_sync(self.channel_layer.group_add)("event_{}".format(event_id), self.channel_name)
         async_to_sync(self.channel_layer.group_send)(
