@@ -51,6 +51,7 @@ def event_create(request):
                       creator=user,
                       time_from=time_from,
                       time_to=time_to)
+        event.save()
         event.users.set([user])
         event.save()
     except IntegrityError:
