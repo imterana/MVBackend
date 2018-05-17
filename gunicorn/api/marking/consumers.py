@@ -5,7 +5,7 @@ from asgiref.sync import async_to_sync
 from channels.generic.websocket import JsonWebsocketConsumer
 from django.core.exceptions import ValidationError
 
-from .misc.websocket_decorators import require_group_message_param, require_client_message_param
+from .misc.websocket_decorators import require_group_message_param, require_client_message_param, ignore_myself
 from .storage import storage
 from ..models import Event
 
@@ -95,7 +95,8 @@ class MarkingConsumer(JsonWebsocketConsumer):
             "event_{}".format(self.event.uuid),
             {
                 'type': 'group.do.not.mark',
-                "params": {"user_id": user_id}
+                "params": {"user_id": user_id},
+                "sender": self.channel_name
             }
         )
 
@@ -112,7 +113,8 @@ class MarkingConsumer(JsonWebsocketConsumer):
             {
                 'type': 'group.marked',
                 "params": {"mark_me_user_id": user_id,
-                           "ready_to_mark_user_id": self.scope['user'].id}
+                           "ready_to_mark_user_id": self.scope['user'].id},
+                "sender": self.channel_name
             }
         )
 
@@ -130,7 +132,8 @@ class MarkingConsumer(JsonWebsocketConsumer):
             "event_{}".format(self.event.uuid),
             {
                 'type': 'group.mark.me',
-                "params": {"user_id": self.prepared_user_id}
+                "params": {"user_id": self.prepared_user_id},
+                "sender": self.channel_name
             }
         )
         self.prepared_user_id = None
@@ -139,6 +142,7 @@ class MarkingConsumer(JsonWebsocketConsumer):
     def group_marked(self, params):
         pass
 
+    @ignore_myself
     @require_group_message_param(["user_id"])
     def group_mark_me(self, params):
         if params['user_id'] in self.marking_list:
@@ -146,6 +150,7 @@ class MarkingConsumer(JsonWebsocketConsumer):
         self.marking_list.add(params['user_id'])
         self.send_json({'message': 'user_joined', "params": {'user_id': params['user_id']}})
 
+    @ignore_myself
     @require_group_message_param(["user_id"])
     def group_do_not_mark(self, params):
         print(params['user_id'], self.prepared_user_id)
@@ -187,7 +192,8 @@ class MarkMeConsumer(JsonWebsocketConsumer):
             "event_{}".format(event_id),
             {
                 'type': 'group.mark.me',
-                "params": {"user_id": user.id}
+                "params": {"user_id": user.id},
+                "sender": self.channel_name
             }
         )
 
@@ -201,6 +207,7 @@ class MarkMeConsumer(JsonWebsocketConsumer):
     def group_do_not_mark(self, params):
         pass
 
+    @ignore_myself
     @require_group_message_param(["ready_to_mark_user_id", "mark_me_user_id"])
     def group_marked(self, params):
         if params['mark_me_user_id'] != self.scope['user'].id:

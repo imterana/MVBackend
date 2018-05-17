@@ -2,7 +2,7 @@ def require_group_message_param(required):
     """
     Decorator for group messages.
     Checks requests parameters for presence, retrieves params from message.
-    :param required: list with required files
+    :param required: list with required parameters
     :return:
     """
 
@@ -25,9 +25,9 @@ def require_group_message_param(required):
 
 def require_client_message_param(required):
     """
-    Decorator for group messages.
-    Checks requests parameters for presence, retrieves params from message.
-    :param required: list with required files
+    Decorator for client messages.
+    Checks requests parameters for presence, sends error if not present.
+    :param required: list with required parameters
     :return:
     """
 
@@ -43,3 +43,20 @@ def require_client_message_param(required):
         return wrapper
 
     return decorator
+
+
+def ignore_myself(func):
+    """
+        Decorator for group messages.
+        Checks if sender is current consumer and ignores the message in that case.
+        :param
+        :return:
+        """
+
+    def wrapper(self, params):
+        sender = params['sender']
+        if sender == self.channel_name:
+            return
+        return func(self, params)
+
+    return wrapper
