@@ -86,7 +86,7 @@ def event_list(request):
 def event_get_by_id(request):
     event = get_event_by_uuid(request.GET['event_id'])
     if event is None:
-        return APINotFoundResponse
+        return APINotFoundResponse(error_msg="Event does not exist")
     return APIResponse(response={"name": event.name,
                                  "event_id": event.uuid,
                                  "time_from": datetime_to_string(event.time_from),
