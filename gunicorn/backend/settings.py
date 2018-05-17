@@ -154,3 +154,5 @@ STATICFILES_DIRS = [
 ]
 
 TEST_RUNNER = 'pytest_runner.PytestTestRunner'
+
+LOGIN_REDIRECT_URL = "/"
