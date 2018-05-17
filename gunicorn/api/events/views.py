@@ -6,7 +6,7 @@ from django.db import IntegrityError
 from django.views.decorators.http import require_GET, require_POST
 
 from .misc.time import datetime_to_string, datetime_from_string
-from ..misc.http_decorators import require_arguments, cast_arguments
+from ..misc.http_decorators import require_arguments, cast_arguments, require_content_type
 from ..misc.response import (
     APIInvalidArgumentResponse,
     APINotPermittedResponse,
@@ -24,6 +24,7 @@ def get_event_by_uuid(uuid):
     return event
 
 
+@require_content_type('json')
 @cast_arguments({
     'time_from': datetime_from_string,
     'time_to': datetime_from_string
@@ -52,7 +53,6 @@ def event_create(request):
         return APIUnknownErrorResponse(error_msg="Could not create new event")
     return APIResponse(response={"event_id": event.uuid})
 
-
 @require_GET
 def event_list(request):
     events = []
@@ -73,6 +73,7 @@ def event_list(request):
     return APIResponse(response=events)
 
 
+@require_content_type('json')
 @require_arguments(['event_id'])
 @require_GET
 def event_get_by_id(request):
@@ -85,6 +86,7 @@ def event_get_by_id(request):
                                  "creator_id": event.creator.id})
 
 
+@require_content_type('json')
 @require_arguments(["event_id"])
 @require_POST
 @login_required
@@ -104,6 +106,7 @@ def event_join(request):
     return APIResponse()
 
 
+@require_content_type('json')
 @require_arguments(["event_id"])
 @require_POST
 @login_required
@@ -121,6 +124,7 @@ def event_leave(request):
     return APIResponse()
 
 
+@require_content_type('json')
 @require_arguments(["event_id"])
 @require_POST
 @login_required
