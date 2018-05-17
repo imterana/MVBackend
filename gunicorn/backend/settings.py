@@ -15,7 +15,6 @@ import os
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/2.0/howto/deployment/checklist/
 
@@ -26,7 +25,6 @@ SECRET_KEY = 'q6xwefe%@$zn!in-j4@kt#!*$(n9j7rqhh2jjg(2=3j7b0((f('
 DEBUG = True
 
 ALLOWED_HOSTS = []
-
 
 # Application definition
 
@@ -45,6 +43,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.google',
     'allauth.socialaccount.providers.vk',
     'api.apps.ApiConfig',
+    'channels',
 ]
 
 MIDDLEWARE = [
@@ -78,7 +77,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'backend.wsgi.application'
 
-
 # Database
 # https://docs.djangoproject.com/en/2.0/ref/settings/#databases
 
@@ -91,6 +89,15 @@ DATABASES = {
         'HOST': 'database',
         'PORT': ''
     }
+}
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("redis", 6379)],
+        },
+    },
 }
 
 # Password validation
@@ -119,7 +126,6 @@ AUTHENTICATION_BACKENDS = (
     'allauth.account.auth_backends.AuthenticationBackend',
 )
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/2.0/topics/i18n/
 
@@ -135,6 +141,8 @@ USE_TZ = False
 
 SITE_ID = 1
 
+ASGI_APPLICATION = 'backend.routing.application'
+
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/2.0/howto/static-files/
 
@@ -144,3 +152,5 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [
     '/usr/src/images/'
 ]
+
+TEST_RUNNER = 'pytest_runner.PytestTestRunner'

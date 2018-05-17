@@ -6,7 +6,11 @@ from django.db import IntegrityError
 from django.views.decorators.http import require_GET, require_POST
 
 from .misc.time import datetime_to_string, datetime_from_string
-from ..misc.http_decorators import require_arguments, cast_arguments, require_content_type
+from ..misc.http_decorators import (
+    require_arguments,
+    cast_arguments,
+    require_content_type,
+)
 from ..misc.response import (
     APIInvalidArgumentResponse,
     APINotPermittedResponse,
@@ -52,6 +56,7 @@ def event_create(request):
     except IntegrityError:
         return APIUnknownErrorResponse(error_msg="Could not create new event")
     return APIResponse(response={"event_id": event.uuid})
+
 
 @require_GET
 def event_list(request):
