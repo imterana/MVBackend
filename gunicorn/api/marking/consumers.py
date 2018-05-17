@@ -63,13 +63,13 @@ class MarkingConsumer(JsonWebsocketConsumer):
 
         self.accept()
 
-        marking_list = storage.get_list("mark_me_{}".format(event_id))
+        marking_list = [int(o.decode('utf-8')) for o in storage.get_list("mark_me_{}".format(event_id))]
         self.marking_list = set(marking_list)
         self.event = event
 
         async_to_sync(self.channel_layer.group_add)("event_{}".format(event_id), self.channel_name)
         storage.add_to_list("ready_to_mark_{}".format(event_id), user.id)
-        self.send_json({"result": 'ok', "marking_list": [int(o.decode('utf-8')) for o in marking_list]})
+        self.send_json({"message": 'marking_list', "marking_list": marking_list})
 
     def disconnect(self, close_code):
         if self.event is not None:
@@ -88,6 +88,7 @@ class MarkingConsumer(JsonWebsocketConsumer):
         if self.prepared_user_id is not None:
             self.send_json({"result": "denial"})
             return
+        self.prepared_user_id = user_id
 
         storage.remove_from_list("mark_me_{}".format(self.event.uuid), user_id)
         async_to_sync(self.channel_layer.group_send)(
@@ -98,7 +99,6 @@ class MarkingConsumer(JsonWebsocketConsumer):
             }
         )
 
-        self.prepared_user_id = user_id
         self.send_json({"result": "ok"})
 
     @require_client_message_param(['user_id'])
@@ -129,7 +129,7 @@ class MarkingConsumer(JsonWebsocketConsumer):
         async_to_sync(self.channel_layer.group_send)(
             "event_{}".format(self.event.uuid),
             {
-                'type': 'group.mar.kme',
+                'type': 'group.mark.me',
                 "params": {"user_id": self.prepared_user_id}
             }
         )
@@ -141,11 +141,14 @@ class MarkingConsumer(JsonWebsocketConsumer):
 
     @require_group_message_param(["user_id"])
     def group_mark_me(self, params):
+        if params['user_id'] in self.marking_list:
+            return
         self.marking_list.add(params['user_id'])
         self.send_json({'message': 'user_joined', "params": {'user_id': params['user_id']}})
 
     @require_group_message_param(["user_id"])
     def group_do_not_mark(self, params):
+        print(params['user_id'], self.prepared_user_id)
         if params['user_id'] == self.prepared_user_id:
             return
         try:

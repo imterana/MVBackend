@@ -235,3 +235,26 @@ class TestInteraction(object):
 
         await mark_me_comm.disconnect()
         await ready_to_mark_comm.disconnect()
+
+    async def test_refuse_marking(self):
+        mark_me_comm = await self.connect("mark_me")
+        ready_to_mark_comm = await self.connect("ready_to_mark")
+
+        response = await ready_to_mark_comm.receive_json_from()
+        marking_list = response.get('marking_list')
+        assert marking_list == [self.mark_me_user.id]
+
+        await ready_to_mark_comm.send_json_to(
+            {"message": "prepare_to_mark", 'params': {'user_id': self.mark_me_user.id}})
+        response = await ready_to_mark_comm.receive_json_from()
+        assert response == {'result': 'ok'}
+
+        await ready_to_mark_comm.send_json_to(
+            {"message": "refuse_marking", 'params': {'user_id': self.mark_me_user.id}})
+        response = await ready_to_mark_comm.receive_json_from()
+        assert response == {'result': 'ok'}
+
+        await self.assert_successful_marking(mark_me_comm=mark_me_comm, ready_to_mark_comm=ready_to_mark_comm)
+
+        await mark_me_comm.disconnect()
+        await ready_to_mark_comm.disconnect()

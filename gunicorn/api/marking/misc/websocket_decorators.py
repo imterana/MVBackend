@@ -11,12 +11,10 @@ def require_group_message_param(required):
             print(event)
             params = event.get('params')
             if params is None:
-                print("params is none")
                 return
 
             for param in required:
                 if param not in params:
-                    print(param, "not in", params)
                     return
             return func(self, params)
 
@@ -38,7 +36,7 @@ def require_client_message_param(required):
 
             for param in required:
                 if param not in params:
-                    self.send_json({"error": "{} is missing".format(param)})
+                    self.send_json({"result": "error", "error_msg": "{} is missing".format(param)})
                     return
             return func(self, params)
 
