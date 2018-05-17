@@ -1,9 +1,11 @@
 import os
+import base64
+
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.views.decorators.http import require_GET, require_POST
 
-from ..misc.http_decorators import require_arguments, require_files
+from ..misc.http_decorators import require_arguments, require_files, require_content_type
 from ..misc.response import (
     APIInvalidArgumentResponse,
     APIResponse,
@@ -29,6 +31,7 @@ def save_file(file, filename):
             destination.write(chunk)
 
 
+@require_content_type('json')
 @require_arguments(["user_id"])
 @require_GET
 @login_required
@@ -44,13 +47,15 @@ def profile_get(request):
                                  "karma": profile.karma})
 
 
-@require_files(["image"])
+@require_content_type('json')
+@require_arguments(["image", "name"])
 @require_POST
 @login_required
 def profile_update_picture(request):
+    print(request)
     user = request.user
-    image_file = request.FILES["image"]
-    _, extension = os.path.splitext(image_file.name)
+    image_file = base64.decodebytes(request.POST["image"])
+    _, extension = os.path.splitext(request.POST["name"])
     filename = "{uid}_avatar{ext}".format(uid=user.id, ext=extension)
     save_file(image_file, os.path.join(AVATARS_DIR, filename))
 
@@ -60,6 +65,7 @@ def profile_update_picture(request):
     return APIResponse()
 
 
+@require_content_type('json')
 @require_POST
 @login_required
 def profile_update_info(request):
@@ -75,19 +81,20 @@ def profile_update_info(request):
     return APIResponse()
 
 
-@require_files(["image"])
+@require_arguments(["image", "name"])
 @require_POST
 @login_required
 def profile_add_confirmation_image(request):
     # TODO some notification for moderator to mark the user as confirmed
     user = request.user
-    image_file = request.FILES["image"]
-    _, extension = os.path.splitext(image_file.name)
+    image_file = base64.decodebytes(request.POST["image"])
+    _, extension = os.path.splitext(request.POST["name"])
     filename = "{uid}_confirmation{ext}".format(uid=user.id, ext=extension)
     save_file(image_file, os.path.join(CONFIRMATIONS_DIR, filename))
     return APIResponse()
 
 
+@require_content_type('json')
 @require_GET
 def profile_find_by_name(request):
     if 'display_name_part' in request.GET:

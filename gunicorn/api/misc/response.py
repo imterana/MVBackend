@@ -10,6 +10,7 @@ class ResponseCode:
     RESPONSE_MISSING_ARGUMENT = 2
     RESPONSE_NOT_PERMITTED = 3
     RESPONSE_UNKNOWN_ERROR = -1
+    RESPONSE_UNSUPPORTED_MEDIA_TYPE = 4
 
 
 class APIResponse(JsonResponse):
@@ -18,7 +19,7 @@ class APIResponse(JsonResponse):
 
     :param error: Error code of the response. Defaults to RESPONSE_OK.
     :param error_msg: String description of the error. Defaults to empty string.
-    :param response: A value to be send as "reponse" field. If not present,
+    :param response: A value to be send as "response" field. If not present,
       field "response" is not present in the JSON.
     """
     response_code = ResponseCode.RESPONSE_OK
@@ -59,6 +60,13 @@ class APINotPermittedResponse(APIResponse):
     An API response class to return when action attempted is not permitted.
     """
     response_code = ResponseCode.RESPONSE_NOT_PERMITTED
+
+
+class APIUnsupportedMediaTypeResponse(APIResponse):
+    """
+    An API response class to return when content-type is unsupported.
+    """
+    response_code = ResponseCode.RESPONSE_UNSUPPORTED_MEDIA_TYPE
 
 
 class APIUnknownErrorResponse(APIResponse):
