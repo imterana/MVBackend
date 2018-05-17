@@ -16,6 +16,7 @@ from ..misc.response import (
     APINotPermittedResponse,
     APIResponse,
     APIUnknownErrorResponse,
+    APINotFoundResponse
 )
 from ..models import Event
 
@@ -84,7 +85,8 @@ def event_list(request):
 @require_GET
 def event_get_by_id(request):
     event = get_event_by_uuid(request.GET['event_id'])
-
+    if event is None:
+        return APINotFoundResponse
     return APIResponse(response={"name": event.name,
                                  "event_id": event.uuid,
                                  "time_from": datetime_to_string(event.time_from),

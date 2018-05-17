@@ -39,12 +39,12 @@ class MarkingConsumer(JsonWebsocketConsumer):
     def connect(self):
         event_id = retrieve_event_id(self.scope['query_string'])
         if event_id is None:
-            self.send_json({"error": "No event id"}, close=True)
+            self.send_json({"result": "error", "error_msg": "No event id"}, close=True)
             return
 
         event = get_event_by_uuid(event_id)
         if event is None:
-            self.send_json({"error": "Invalid event"})
+            self.send_json({"result": "error", "error_msg": "Invalid event"})
             self.close()
             return
 
@@ -52,13 +52,13 @@ class MarkingConsumer(JsonWebsocketConsumer):
         time_to = datetime.utcfromtimestamp(event.time_to.timestamp())
         now = datetime.utcnow()
         if time_from > now or time_to < now:
-            self.send_json({"error": "Invalid event"})
+            self.send_json({"result": "error", "error_msg": "Event is not running now"})
             self.close()
             return
 
         user = self.scope['user']
         if user not in event.users.all():
-            self.send_json({"error": "You are not in the event"}, close=True)
+            self.send_json({"result": "error", "error_msg": "You are not in the event"}, close=True)
             return
 
         self.accept()

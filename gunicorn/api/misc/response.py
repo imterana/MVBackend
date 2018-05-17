@@ -11,6 +11,7 @@ class ResponseCode:
     RESPONSE_NOT_PERMITTED = 3
     RESPONSE_UNKNOWN_ERROR = -1
     RESPONSE_UNSUPPORTED_MEDIA_TYPE = 4
+    RESPONSE_NOT_FOUND = 5
 
 
 class APIResponse(JsonResponse):
@@ -67,6 +68,13 @@ class APIUnsupportedMediaTypeResponse(APIResponse):
     An API response class to return when content-type is unsupported.
     """
     response_code = ResponseCode.RESPONSE_UNSUPPORTED_MEDIA_TYPE
+
+
+class APINotFoundResponse(APIResponse):
+    """
+    An API response class to return when required object is not found.
+    """
+    response_code = ResponseCode.RESPONSE_NOT_FOUND
 
 
 class APIUnknownErrorResponse(APIResponse):
