@@ -74,6 +74,19 @@ def event_list(request):
 
 
 @require_content_type('json')
+@require_arguments(['event_id'])
+@require_GET
+def event_get_by_id(request):
+    event = get_event_by_uuid(request.GET['event_id'])
+
+    return APIResponse(response={"name": event.name,
+                                 "event_id": event.uuid,
+                                 "time_from": datetime_to_string(event.time_from),
+                                 "time_to": datetime_to_string(event.time_to),
+                                 "creator_id": event.creator.id})
+
+
+@require_content_type('json')
 @require_arguments(["event_id"])
 @require_POST
 @login_required

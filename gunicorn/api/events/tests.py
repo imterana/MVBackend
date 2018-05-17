@@ -30,6 +30,23 @@ class EventTestCase(APITestCase):
                                                                 'time_to': time_to}),
                            content_type='application/json', format='json')
 
+    def test_get_event_by_id(self):
+        client = Client()
+        client.force_login(self.user)
+
+        event_name = 'testevent'
+        response = self.create_event(client, event_name)
+        parsed = self.parseAndCheckResponseCode(response,
+                                                ResponseCode.RESPONSE_OK)
+
+        event_id = parsed["response"]["event_id"]
+
+        response = client.get(reverse('get_event_by_id'), {'event_id': event_id})
+        parsed = self.parseAndCheckResponseCode(response,
+                                                ResponseCode.RESPONSE_OK)
+        event = parsed['response']
+        self.assertEqual(event_name, event['name'])
+
     def test_create_delete_event(self):
         client = Client()
         client.force_login(self.user)
