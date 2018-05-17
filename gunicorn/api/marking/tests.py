@@ -258,3 +258,80 @@ class TestInteraction(object):
 
         await mark_me_comm.disconnect()
         await ready_to_mark_comm.disconnect()
+
+    async def test_several_mark_me(self):
+        mark_me_user1 = create_user("mmu1")
+        self.event.users.add(mark_me_user1)
+        mark_me_comm1 = WebsocketCommunicator(MarkMeConsumer,
+                                              "ws/mark_me?event_id={eid}".format(eid=self.event.uuid))
+        mark_me_comm1.scope['user'] = mark_me_user1
+        connected, _ = await mark_me_comm1.connect()
+        assert connected
+
+        mark_me_user2 = create_user("mmu2")
+        self.event.users.add(mark_me_user2)
+        mark_me_comm2 = WebsocketCommunicator(MarkMeConsumer,
+                                              "ws/mark_me?event_id={eid}".format(eid=self.event.uuid))
+        mark_me_comm2.scope['user'] = mark_me_user2
+        connected, _ = await mark_me_comm2.connect()
+        assert connected
+
+        self.event.save()
+
+        ready_to_mark_comm = await self.connect("ready_to_mark")
+        response = await ready_to_mark_comm.receive_json_from()
+        print(response)
+        marking_list = response.get('marking_list')
+        assert set(marking_list) == {mark_me_user1.id, mark_me_user2.id}
+
+        # Refuse marking mark_me_user1
+
+        await ready_to_mark_comm.send_json_to(
+            {"message": "prepare_to_mark", 'params': {'user_id': mark_me_user1.id}})
+        response = await ready_to_mark_comm.receive_json_from()
+        assert response == {'result': 'ok'}
+
+        await ready_to_mark_comm.send_json_to(
+            {"message": "refuse_marking", 'params': {'user_id': mark_me_user1.id}})
+        response = await ready_to_mark_comm.receive_json_from()
+        assert response == {'result': 'ok'}
+
+        # Mark mark_me_user2
+
+        await ready_to_mark_comm.send_json_to(
+            {"message": "prepare_to_mark", 'params': {'user_id': mark_me_user2.id}})
+        response = await ready_to_mark_comm.receive_json_from()
+        assert response == {'result': 'ok'}
+
+        await ready_to_mark_comm.send_json_to(
+            {"message": "confirm_marking", 'params': {'user_id': mark_me_user2.id}})
+        response = await ready_to_mark_comm.receive_json_from()
+        assert response == {'result': 'ok'}
+
+        response = await mark_me_comm2.receive_json_from()
+        message = response.get('message')
+        assert message == "marked"
+        params = response.get('params')
+        assert params == {'user_id': self.ready_to_mark_user.id}
+
+        # Mark mark_me_user1
+
+        await ready_to_mark_comm.send_json_to(
+            {"message": "prepare_to_mark", 'params': {'user_id': mark_me_user1.id}})
+        response = await ready_to_mark_comm.receive_json_from()
+        assert response == {'result': 'ok'}
+
+        await ready_to_mark_comm.send_json_to(
+            {"message": "confirm_marking", 'params': {'user_id': mark_me_user1.id}})
+        response = await ready_to_mark_comm.receive_json_from()
+        assert response == {'result': 'ok'}
+
+        response = await mark_me_comm1.receive_json_from()
+        message = response.get('message')
+        assert message == "marked"
+        params = response.get('params')
+        assert params == {'user_id': self.ready_to_mark_user.id}
+
+        await mark_me_comm1.disconnect()
+        await mark_me_comm2.disconnect()
+        await ready_to_mark_comm.disconnect()
