@@ -28,7 +28,7 @@ def retrieve_event_id(query_string):
 
 
 class MarkingConsumer(JsonWebsocketConsumer):
-    messages = ['prepare_to_mark', 'confirm_marking', 'refuse_marking']
+    messages = ['prepare_to_mark', 'confirm_marking', 'refuse_to_mark']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -120,7 +120,7 @@ class MarkingConsumer(JsonWebsocketConsumer):
         self.send_json({"result": "ok"})
 
     @require_client_message_param(['user_id'])
-    def refuse_marking(self, params):
+    def refuse_to_mark(self, params):
         user_id = params.get('user_id')
         if self.prepared_user_id != user_id:
             return
@@ -143,8 +143,6 @@ class MarkingConsumer(JsonWebsocketConsumer):
     @ignore_myself
     @require_group_message_param(["user_id"])
     def group_mark_me(self, params):
-        if params['user_id'] in self.marking_list:
-            return
         self.marking_list.add(params['user_id'])
         self.send_json({'message': 'user_joined', "params": {'user_id': params['user_id']}})
 
@@ -178,7 +176,6 @@ class MarkMeConsumer(JsonWebsocketConsumer):
         self.event = event
 
         user = self.scope['user']
-
         async_to_sync(self.channel_layer.group_add)("event_{}".format(event_id), self.channel_name)
         async_to_sync(self.channel_layer.group_send)(
             "event_{}".format(event_id),
