@@ -45,7 +45,7 @@ def require_client_message_param(required):
     return decorator
 
 
-def ignore_myself(func):
+def ignore_messages_from_myself(func):
     """
         Decorator for group messages.
         Checks if sender is current consumer and ignores the message in that case.
