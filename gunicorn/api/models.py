@@ -15,7 +15,7 @@ class UserProfile(models.Model):
         primary_key=True,
     )
     display_name = models.CharField(max_length=128)
-    picture = models.CharField(max_length=128, unique=True, default=None)
+    picture = models.CharField(max_length=128, default=None)
     confirmed = models.BooleanField(default=False)
     bio = models.CharField(max_length=128)
     karma = models.PositiveIntegerField(default=0)

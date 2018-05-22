@@ -17,7 +17,7 @@ def create_user(username):
 
 
 @pytest.mark.django_db(transaction=True)
-def create_event(creator, time_from=None, time_to=None, name="test evemt"):
+def create_event(creator, time_from=None, time_to=None, name="test event"):
     event = Event(creator=creator)
     if time_to is not None:
         event.time_to = time_to
@@ -239,7 +239,7 @@ class TestInteraction(object):
         await mark_me_comm.disconnect()
         await ready_to_mark_comm.disconnect()
 
-    async def test_refuse_marking(self):
+    async def test_refuse_to_mark(self):
         mark_me_comm = await self.connect("mark_me")
         ready_to_mark_comm = await self.connect("ready_to_mark")
 
@@ -256,7 +256,7 @@ class TestInteraction(object):
         assert response == {'result': 'ok'}
 
         await ready_to_mark_comm.send_json_to(
-            {"message": "refuse_marking", 'params': {'user_id': self.mark_me_user.id}})
+            {"message": "refuse_to_mark", 'params': {'user_id': self.mark_me_user.id}})
         response = await ready_to_mark_comm.receive_json_from()
         assert response == {'result': 'ok'}
 
@@ -293,7 +293,7 @@ class TestInteraction(object):
         marking_list = params.get('marking_list')
         assert set(marking_list) == {mark_me_user1.id, mark_me_user2.id}
 
-        # Refuse marking mark_me_user1
+        # Refuse to mark mark_me_user1
 
         await ready_to_mark_comm.send_json_to(
             {"message": "prepare_to_mark", 'params': {'user_id': mark_me_user1.id}})
@@ -301,7 +301,7 @@ class TestInteraction(object):
         assert response == {'result': 'ok'}
 
         await ready_to_mark_comm.send_json_to(
-            {"message": "refuse_marking", 'params': {'user_id': mark_me_user1.id}})
+            {"message": "refuse_to_mark", 'params': {'user_id': mark_me_user1.id}})
         response = await ready_to_mark_comm.receive_json_from()
         assert response == {'result': 'ok'}
 
