@@ -92,7 +92,7 @@ class TestConsumer(object):
         await self.assert_connection_fails(event_id=event.uuid)
 
     async def connection_future_event(self):
-        time_from = datetime.datetime.utcnow() + datetime.timedelta(seconds=12)
+        time_from = datetime.datetime.utcnow() + datetime.timedelta(minutes=12)
         time_to = time_from + datetime.timedelta(hours=12)
         event = create_event(creator=self.user,
                              time_from=time_from,
@@ -122,7 +122,7 @@ class TestMarking(TestConsumer):
         await self.connection_past_event()
 
     async def test_connection_future_event(self):
-        await self.connection_past_event()
+        await self.connection_future_event()
 
 
 @pytest.mark.django_db(transaction=True)
@@ -152,7 +152,7 @@ class TestMarkMe(TestConsumer):
         await self.connection_past_event()
 
     async def test_connection_future_event(self):
-        await self.connection_past_event()
+        await self.connection_future_event()
 
 
 @pytest.mark.django_db(transaction=True)
