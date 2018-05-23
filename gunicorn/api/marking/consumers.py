@@ -54,6 +54,7 @@ class EventConsumer(JsonWebsocketConsumer):
 
     def connect(self):
         self.accept()
+
         event_id = retrieve_event_id(self.scope['query_string'])
         if event_id is None:
             self.send_json({"result": "error", "error_msg": ErrorMessages.NO_EVENT}, close=True)
@@ -61,12 +62,7 @@ class EventConsumer(JsonWebsocketConsumer):
 
         event = get_event_by_uuid(event_id)
         if event is None:
-            self.send_json({"result": "error", "error_msg": ErrorMessages.INVALID_EVENT})
-            self.close()
-            return False
-
-        if not event_is_running(event):
-            self.send_json({"result": "error", "error_msg": ErrorMessages.NOT_RUNNING_EVENT}, close=True)
+            self.send_json({"result": "error", "error_msg": ErrorMessages.INVALID_EVENT}, close=True)
             return False
 
         self.event = event
@@ -74,47 +70,32 @@ class EventConsumer(JsonWebsocketConsumer):
         return True
 
 
-class MarkingConsumer(JsonWebsocketConsumer):
+class MarkingConsumer(EventConsumer):
     messages = ['prepare_to_mark', 'confirm_marking', 'refuse_to_mark']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.marking_list = set()
-        self.event = None
         self.prepared_user_id = None
 
     def connect(self):
-        self.accept()
+        if not super().connect():
+            return
 
-        event_id = retrieve_event_id(self.scope['query_string'])
-        if event_id is None:
-            self.send_json({"result": "error", "error_msg": ErrorMessages.NO_EVENT})
-            self.close()
-            return False
-
-        event = get_event_by_uuid(event_id)
-        if event is None:
-            self.send_json({"result": "error", "error_msg": ErrorMessages.INVALID_EVENT})
-            self.close()
-            return False
-
-        if not event_is_running(event):
+        if not event_is_running(self.event):
             self.send_json({"result": "error", "error_msg": ErrorMessages.NOT_RUNNING_EVENT})
             self.close()
             return False
 
-        self.event = event
-
         user = self.scope['user']
 
-        print(storage.get_list("mark_me_{}".format(event_id)), event_id)
-        marking_list = [int(o.decode('utf-8')) for o in storage.get_list("mark_me_{}".format(event_id))]
+        print(storage.get_list("mark_me_{}".format(self.event.uuid)), self.event.uuid)
+        marking_list = [int(o.decode('utf-8')) for o in storage.get_list("mark_me_{}".format(self.event.uuid))]
         self.marking_list = set(marking_list)
-        self.event = event
 
-        async_to_sync(self.channel_layer.group_add)("event_{}".format(event_id), self.channel_name)
-        print(self.channel_layer, event_id)
-        storage.add_to_list("ready_to_mark_{}".format(event_id), user.id)
+        async_to_sync(self.channel_layer.group_add)("event_{}".format(self.event.uuid), self.channel_name)
+        print(self.channel_layer, self.event.uuid)
+        storage.add_to_list("ready_to_mark_{}".format(self.event.uuid), user.id)
         self.send_json({"message": 'marking_list', "params": {"marking_list": marking_list}})
 
     def disconnect(self, close_code):
@@ -207,35 +188,21 @@ class MarkingConsumer(JsonWebsocketConsumer):
         self.send_json({'message': 'user_left', "params": {'user_id': params['user_id']}})
 
 
-class MarkMeConsumer(JsonWebsocketConsumer):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.event = None
-
+class MarkMeConsumer(EventConsumer):
     def connect(self):
-        self.accept()
+        if not super().connect():
+            return
 
-        event_id = retrieve_event_id(self.scope['query_string'])
-        if event_id is None:
-            self.send_json({"result": "error", "error_msg": ErrorMessages.NO_EVENT})
+        if event_is_past(self.event):
+            self.send_json({"result": "error", "error_msg": ErrorMessages.NOT_RUNNING_EVENT})
             self.close()
-            return False
-
-        event = get_event_by_uuid(event_id)
-        if event is None:
-            self.send_json({"result": "error", "error_msg": ErrorMessages.INVALID_EVENT})
-            self.close()
-            return False
-
-        if event_is_past(event):
-            self.send_json({"result": "error", "error_msg": ErrorMessages.NOT_RUNNING_EVENT}, close=True)
             return False
 
         user = self.scope['user']
-        async_to_sync(self.channel_layer.group_add)("event_{}".format(event_id), self.channel_name)
-        print(self.channel_layer, event_id)
+
+        async_to_sync(self.channel_layer.group_add)("event_{}".format(self.event.uuid), self.channel_name)
         async_to_sync(self.channel_layer.group_send)(
-            "event_{}".format(event_id),
+            "event_{}".format(self.event.uuid),
             {
                 'type': 'group.mark.me',
                 "params": {"user_id": user.id},
@@ -243,7 +210,8 @@ class MarkMeConsumer(JsonWebsocketConsumer):
             }
         )
 
-        storage.add_to_list("mark_me_{}".format(event_id), user.id)
+        storage.add_to_list("mark_me_{}".format(self.event.uuid), user.id)
+        storage.add_to_list("asked_to_mark_{}".format(self.event.uuid), user.id)
 
     def group_mark_me(self, params):
         pass
