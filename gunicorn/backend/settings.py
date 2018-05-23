@@ -149,6 +149,8 @@ ASGI_APPLICATION = 'backend.routing.application'
 STATIC_ROOT = '/static/'
 STATIC_URL = '/static/'
 
+ACCOUNT_LOGOUT_ON_GET = True
+
 STATICFILES_DIRS = [
     '/usr/src/images/'
 ]

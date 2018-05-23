@@ -1,3 +1,6 @@
+from ..websocket_api import ClientResponse
+
+
 def require_group_message_param(required):
     """
     Decorator for group messages.
@@ -35,7 +38,7 @@ def require_client_message_param(required):
         def wrapper(self, params):
             for param in required:
                 if param not in params:
-                    self.send_json({"result": "error", "error_msg": "{} is missing".format(param)})
+                    self.send_json(ClientResponse.response_error("{} is missing".format(param)))
                     return
             return func(self, params)
 
@@ -44,7 +47,7 @@ def require_client_message_param(required):
     return decorator
 
 
-def ignore_messages_from_myself(func):
+def ignore_own_messages(func):
     """
         Decorator for group messages.
         Checks if sender is current consumer and ignores the message in that case.
