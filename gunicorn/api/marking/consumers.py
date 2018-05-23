@@ -52,19 +52,20 @@ class MarkingConsumer(JsonWebsocketConsumer):
     def connect(self):
         event_id = retrieve_event_id(self.scope['query_string'])
         if event_id is None:
-            self.send_json({"result": "error", "error_msg": "No event id"}, close=True)
-            return
+            self.send_json({"result": "error", "error_msg": ErrorMessages.NO_EVENT}, close=True)
+            return False
 
         event = get_event_by_uuid(event_id)
         if event is None:
-            self.send_json({"result": "error", "error_msg": "Invalid event"})
+            self.send_json({"result": "error", "error_msg": ErrorMessages.INVALID_EVENT})
             self.close()
-            return
+            return False
 
         if not event_is_running(event):
-            self.send_json({"result": "error", "error_msg": "Event is not running now"})
-            self.close()
-            return
+            self.send_json({"result": "error", "error_msg": ErrorMessages.NOT_RUNNING_EVENT}, close=True)
+            return False
+
+        self.event = event
 
         user = self.scope['user']
 
@@ -177,13 +178,14 @@ class MarkMeConsumer(JsonWebsocketConsumer):
     def connect(self):
         event_id = retrieve_event_id(self.scope['query_string'])
         if event_id is None:
-            self.close()
-            return
+            self.send_json({"result": "error", "error_msg": ErrorMessages.NO_EVENT}, close=True)
+            return False
+
         event = get_event_by_uuid(event_id)
         if event is None:
+            self.send_json({"result": "error", "error_msg": ErrorMessages.INVALID_EVENT})
             self.close()
-            return
-        self.event = event
+            return False
 
         user = self.scope['user']
         async_to_sync(self.channel_layer.group_add)("event_{}".format(event_id), self.channel_name)

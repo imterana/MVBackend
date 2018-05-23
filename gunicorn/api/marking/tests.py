@@ -50,6 +50,7 @@ class SharedEvent(object):
 @pytest.mark.asyncio
 class TestConsumer(object):
     route = ""
+    consumer = None
     user = None
     event = None
 
@@ -111,6 +112,7 @@ class TestMarking(TestConsumer):
         cls.user = create_user("marking_test_user")
         cls.event = create_event(cls.user)
         cls.route = "ws/marking"
+        cls.consumer = MarkingConsumer
 
     async def test_connection_non_existing_event(self):
         await self.connection_non_existing_event()
@@ -134,6 +136,7 @@ class TestMarkMe(TestConsumer):
         cls.user = create_user("mark_me_test_user")
         cls.event = create_event(cls.user)
         cls.route = "ws/mark_me"
+        cls.consumer = MarkMeConsumer
 
     async def test_connection(self):
         communicator = WebsocketCommunicator(MarkMeConsumer, self.route + "?event_id={eid}".format(eid=self.event.uuid))
