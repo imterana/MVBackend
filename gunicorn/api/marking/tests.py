@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 
 import pytest
@@ -6,7 +7,7 @@ from django.contrib.auth.models import User
 
 from .consumers import MarkingConsumer, MarkMeConsumer, ErrorMessages
 from ..models import Event
-import asyncio
+
 
 @pytest.mark.django_db(transaction=True)
 def create_user(username):
@@ -60,7 +61,7 @@ class TestConsumer(object):
         if user is None:
             user = self.user
 
-        communicator = WebsocketCommunicator(MarkingConsumer, self.route + "?event_id={eid}".format(eid=event_id))
+        communicator = WebsocketCommunicator(self.consumer, self.route + "?event_id={eid}".format(eid=event_id))
         communicator.scope['user'] = user
         connected, _ = await communicator.connect()
         assert connected
@@ -77,7 +78,7 @@ class TestConsumer(object):
         await self.assert_connection_fails(event_id='not exist', error_msg=ErrorMessages.INVALID_EVENT)
 
     async def connection_no_event(self):
-        communicator = WebsocketCommunicator(MarkingConsumer, "ws/marking")
+        communicator = WebsocketCommunicator(self.consumer, self.route)
         communicator.scope['user'] = self.user
         connected, _ = await communicator.connect()
         assert connected
@@ -160,9 +161,6 @@ class TestMarkMe(TestConsumer):
 
     async def test_connection_past_event(self):
         await self.connection_past_event()
-
-    async def test_connection_future_event(self):
-        await self.connection_future_event()
 
 
 @pytest.mark.django_db(transaction=True)

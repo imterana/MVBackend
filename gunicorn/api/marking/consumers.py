@@ -35,10 +35,43 @@ def event_is_running(event):
     return not (time_from > now or time_to < now)
 
 
+def event_is_past(event):
+    time_to = datetime.utcfromtimestamp(event.time_to.timestamp())
+    now = datetime.utcnow()
+    return time_to < now
+
+
 class ErrorMessages:
     NO_EVENT = "No event id"
     INVALID_EVENT = "Invalid event"
     NOT_RUNNING_EVENT = "Event is not running now"
+
+
+class EventConsumer(JsonWebsocketConsumer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.event = None
+
+    def connect(self):
+        self.accept()
+        event_id = retrieve_event_id(self.scope['query_string'])
+        if event_id is None:
+            self.send_json({"result": "error", "error_msg": ErrorMessages.NO_EVENT}, close=True)
+            return False
+
+        event = get_event_by_uuid(event_id)
+        if event is None:
+            self.send_json({"result": "error", "error_msg": ErrorMessages.INVALID_EVENT})
+            self.close()
+            return False
+
+        if not event_is_running(event):
+            self.send_json({"result": "error", "error_msg": ErrorMessages.NOT_RUNNING_EVENT}, close=True)
+            return False
+
+        self.event = event
+
+        return True
 
 
 class MarkingConsumer(JsonWebsocketConsumer):
@@ -192,6 +225,10 @@ class MarkMeConsumer(JsonWebsocketConsumer):
         if event is None:
             self.send_json({"result": "error", "error_msg": ErrorMessages.INVALID_EVENT})
             self.close()
+            return False
+
+        if event_is_past(event):
+            self.send_json({"result": "error", "error_msg": ErrorMessages.NOT_RUNNING_EVENT}, close=True)
             return False
 
         user = self.scope['user']
