@@ -35,19 +35,27 @@ def event_is_running(event):
     return not (time_from > now or time_to < now)
 
 
+def event_is_past(event):
+    time_to = datetime.utcfromtimestamp(event.time_to.timestamp())
+    now = datetime.utcnow()
+    return time_to < now
+
+
 class ErrorMessages:
     NO_EVENT = "No event id"
     INVALID_EVENT = "Invalid event"
     NOT_RUNNING_EVENT = "Event is not running now"
+    NOT_PERMITTED = "Action is not permitted"
 
 
-class Consumer(JsonWebsocketConsumer):
+class EventConsumer(JsonWebsocketConsumer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.event = None
 
     def connect(self):
         self.accept()
+
         event_id = retrieve_event_id(self.scope['query_string'])
         if event_id is None:
             self.send_json({"result": "error", "error_msg": ErrorMessages.NO_EVENT}, close=True)
@@ -55,25 +63,21 @@ class Consumer(JsonWebsocketConsumer):
 
         event = get_event_by_uuid(event_id)
         if event is None:
-            self.send_json({"result": "error", "error_msg": ErrorMessages.INVALID_EVENT})
-            self.close()
+            self.send_json({"result": "error", "error_msg": ErrorMessages.INVALID_EVENT}, close=True)
             return False
 
-        if not event_is_running(event):
-            self.send_json({"result": "error", "error_msg": ErrorMessages.NOT_RUNNING_EVENT}, close=True)
+        asked_to_mark_list = [int(o.decode('utf-8')) for o in storage.get_list("asked_to_mark_{}".format(event_id))]
+
+        if self.scope['user'].id in asked_to_mark_list:
+            self.send_json({"result": "error", "error_msg": ErrorMessages.NOT_PERMITTED}, close=True)
             return False
 
         self.event = event
 
         return True
 
-    def disconnect(self, code):
-        print(self.scope['user'].id, "disconnected")
-        if self.event is not None:
-            async_to_sync(self.channel_layer.group_discard)("event_{}".format(self.event.uuid), self.channel_name)
 
-
-class MarkingConsumer(Consumer):
+class MarkingConsumer(EventConsumer):
     messages = ['prepare_to_mark', 'confirm_marking', 'refuse_to_mark']
 
     def __init__(self, *args, **kwargs):
@@ -85,19 +89,23 @@ class MarkingConsumer(Consumer):
         if not super().connect():
             return
 
-        user = self.scope['user']
-        print(storage.get_list("mark_me_{}".format(self.event.uuid)), self.event.uuid)
+        if not event_is_running(self.event):
+            self.send_json({"result": "error", "error_msg": ErrorMessages.NOT_RUNNING_EVENT})
+            self.close()
+            return False
 
-        async_to_sync(self.channel_layer.group_add)("event_{}".format(self.event.uuid), self.channel_name)
+        user = self.scope['user']
+
         marking_list = [int(o.decode('utf-8')) for o in storage.get_list("mark_me_{}".format(self.event.uuid))]
         self.marking_list = set(marking_list)
 
+        async_to_sync(self.channel_layer.group_add)("event_{}".format(self.event.uuid), self.channel_name)
         storage.add_to_list("ready_to_mark_{}".format(self.event.uuid), user.id)
         self.send_json({"message": 'marking_list', "params": {"marking_list": marking_list}})
 
     def disconnect(self, close_code):
-        super().disconnect(code=close_code)
         if self.event is not None:
+            async_to_sync(self.channel_layer.group_discard)("event_{}".format(self.event.uuid), self.channel_name)
             storage.remove_from_list("ready_to_mark_{}".format(self.event.uuid), self.scope['user'].id)
 
     def receive_json(self, content, **kwargs):
@@ -175,7 +183,6 @@ class MarkingConsumer(Consumer):
     @ignore_messages_from_myself
     @require_group_message_param(["user_id"])
     def group_do_not_mark(self, params):
-        print(params['user_id'], self.prepared_user_id)
         if params['user_id'] == self.prepared_user_id:
             return
         try:
@@ -185,16 +192,19 @@ class MarkingConsumer(Consumer):
         self.send_json({'message': 'user_left', "params": {'user_id': params['user_id']}})
 
 
-class MarkMeConsumer(Consumer):
+class MarkMeConsumer(EventConsumer):
     def connect(self):
         if not super().connect():
             return
 
+        if event_is_past(self.event):
+            self.send_json({"result": "error", "error_msg": ErrorMessages.NOT_RUNNING_EVENT})
+            self.close()
+            return False
+
         user = self.scope['user']
-        print("MarkMe connected", user)
 
         async_to_sync(self.channel_layer.group_add)("event_{}".format(self.event.uuid), self.channel_name)
-        print("mark me group", self.channel_name)
         async_to_sync(self.channel_layer.group_send)(
             "event_{}".format(self.event.uuid),
             {
@@ -203,11 +213,9 @@ class MarkMeConsumer(Consumer):
                 "sender": self.channel_name
             }
         )
-        print("mark me sent")
 
         storage.add_to_list("mark_me_{}".format(self.event.uuid), user.id)
         storage.add_to_list("asked_to_mark_{}".format(self.event.uuid), user.id)
-        print("MarkMe added", self.event.uuid)
 
     def group_mark_me(self, params):
         pass
@@ -221,3 +229,7 @@ class MarkMeConsumer(Consumer):
         if params['mark_me_user_id'] != self.scope['user'].id:
             return
         self.send_json({"message": "marked", "params": {'user_id': params['ready_to_mark_user_id']}}, close=True)
+
+    def disconnect(self, code):
+        if self.event is not None:
+            async_to_sync(self.channel_layer.group_discard)("event_{}".format(self.event.uuid), self.channel_name)
