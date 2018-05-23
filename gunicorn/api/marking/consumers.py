@@ -45,6 +45,7 @@ class ErrorMessages:
     NO_EVENT = "No event id"
     INVALID_EVENT = "Invalid event"
     NOT_RUNNING_EVENT = "Event is not running now"
+    NOT_PERMITTED = "Action is not permitted"
 
 
 class EventConsumer(JsonWebsocketConsumer):
@@ -63,6 +64,12 @@ class EventConsumer(JsonWebsocketConsumer):
         event = get_event_by_uuid(event_id)
         if event is None:
             self.send_json({"result": "error", "error_msg": ErrorMessages.INVALID_EVENT}, close=True)
+            return False
+
+        asked_to_mark_list = [int(o.decode('utf-8')) for o in storage.get_list("asked_to_mark_{}".format(event_id))]
+
+        if self.scope['user'].id in asked_to_mark_list:
+            self.send_json({"result": "error", "error_msg": ErrorMessages.NOT_PERMITTED}, close=True)
             return False
 
         self.event = event
@@ -89,12 +96,10 @@ class MarkingConsumer(EventConsumer):
 
         user = self.scope['user']
 
-        print(storage.get_list("mark_me_{}".format(self.event.uuid)), self.event.uuid)
         marking_list = [int(o.decode('utf-8')) for o in storage.get_list("mark_me_{}".format(self.event.uuid))]
         self.marking_list = set(marking_list)
 
         async_to_sync(self.channel_layer.group_add)("event_{}".format(self.event.uuid), self.channel_name)
-        print(self.channel_layer, self.event.uuid)
         storage.add_to_list("ready_to_mark_{}".format(self.event.uuid), user.id)
         self.send_json({"message": 'marking_list', "params": {"marking_list": marking_list}})
 
@@ -178,7 +183,6 @@ class MarkingConsumer(EventConsumer):
     @ignore_messages_from_myself
     @require_group_message_param(["user_id"])
     def group_do_not_mark(self, params):
-        print(params['user_id'], self.prepared_user_id)
         if params['user_id'] == self.prepared_user_id:
             return
         try:
@@ -224,8 +228,7 @@ class MarkMeConsumer(EventConsumer):
     def group_marked(self, params):
         if params['mark_me_user_id'] != self.scope['user'].id:
             return
-        self.send_json({"message": "marked", "params": {'user_id': params['ready_to_mark_user_id']}})
-        self.close()
+        self.send_json({"message": "marked", "params": {'user_id': params['ready_to_mark_user_id']}}, close=True)
 
     def disconnect(self, code):
         if self.event is not None:

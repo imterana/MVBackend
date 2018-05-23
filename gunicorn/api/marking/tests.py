@@ -20,31 +20,21 @@ def create_user(username):
 @pytest.mark.django_db(transaction=True)
 def create_event(creator, time_from=None, time_to=None, name="test event"):
     event = Event(creator=creator)
-    if time_to is not None:
-        event.time_to = time_to
     if time_from is not None:
         event.time_from = time_from
+    else:
+        event.time_from = datetime.datetime.utcnow() - datetime.timedelta(seconds=12)
+
+    if time_to is not None:
+        event.time_to = time_to
+    else:
+        event.time_to = event.time_from + datetime.timedelta(hours=12)
+
     event.name = name
     event.save()
     event.users.set([creator])
     event.save()
     return event
-
-
-def create_running_event(creator, name='running_event'):
-    time_from = datetime.datetime.utcnow() - datetime.timedelta(seconds=12)
-    time_to = time_from + datetime.timedelta(hours=12)
-    return create_event(creator=creator, name=name, time_from=time_from, time_to=time_to)
-
-
-class SharedEvent(object):
-    __event = None
-
-    @classmethod
-    def __new__(cls, creator):
-        if SharedEvent.__event is None:
-            SharedEvent.__event = create_event(creator)
-        return SharedEvent.__event
 
 
 @pytest.mark.django_db(transaction=True)
@@ -110,6 +100,19 @@ class TestConsumer(object):
 
         await self.assert_connection_fails(event_id=event.uuid, error_msg=ErrorMessages.NOT_RUNNING_EVENT)
 
+    async def connection_after_asking_to_mark(self):
+        communicator = WebsocketCommunicator(MarkMeConsumer, "ws/mark_me?event_id={eid}".format(eid=self.event.uuid))
+        communicator.scope['user'] = self.user
+        connected, _ = await communicator.connect()
+        assert connected
+
+        # Fuck. It seems to me that channel layer doesn't have time to send messages
+        await asyncio.sleep(1)
+
+        await self.assert_connection_fails(error_msg=ErrorMessages.NOT_PERMITTED)
+
+        await communicator.disconnect()
+
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
@@ -133,6 +136,9 @@ class TestMarking(TestConsumer):
 
     async def test_connection_future_event(self):
         await self.connection_future_event()
+
+    async def test_connection_after_asking_to_mark(self):
+        await self.connection_after_asking_to_mark()
 
 
 @pytest.mark.django_db(transaction=True)
@@ -162,6 +168,9 @@ class TestMarkMe(TestConsumer):
     async def test_connection_past_event(self):
         await self.connection_past_event()
 
+    async def test_connection_after_asking_to_mark(self):
+        await self.connection_after_asking_to_mark()
+
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
@@ -171,7 +180,7 @@ class TestInteraction(object):
     def setup_class(cls):
         cls.mark_me_user = create_user("mark_me_test_user")
         cls.ready_to_mark_user = create_user("ready_to_mark_test_user")
-        cls.event = create_running_event(cls.ready_to_mark_user)
+        cls.event = create_event(cls.ready_to_mark_user)
         cls.event.users.add(cls.mark_me_user)
         cls.event.save()
 
