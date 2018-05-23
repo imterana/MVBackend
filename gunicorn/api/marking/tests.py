@@ -4,9 +4,9 @@ import pytest
 from channels.testing import WebsocketCommunicator
 from django.contrib.auth.models import User
 
-from .consumers import MarkingConsumer, MarkMeConsumer
+from .consumers import MarkingConsumer, MarkMeConsumer, ErrorMessages
 from ..models import Event
-
+import asyncio
 
 @pytest.mark.django_db(transaction=True)
 def create_user(username):
@@ -54,7 +54,7 @@ class TestConsumer(object):
     user = None
     event = None
 
-    async def assert_connection_fails(self, event_id=None, user=None):
+    async def assert_connection_fails(self, event_id=None, user=None, error_msg=None):
         if event_id is None:
             event_id = self.event.uuid
         if user is None:
@@ -65,18 +65,25 @@ class TestConsumer(object):
         connected, _ = await communicator.connect()
         assert connected
 
+        if error_msg is not None:
+            response = await communicator.receive_json_from()
+            assert response == {"result": "error", "error_msg": error_msg}
+
         response = await communicator.receive_output()
         assert response['type'] == 'websocket.close'
         await communicator.disconnect()
 
     async def connection_non_existing_event(self):
-        await self.assert_connection_fails(event_id='not exist')
+        await self.assert_connection_fails(event_id='not exist', error_msg=ErrorMessages.INVALID_EVENT)
 
     async def connection_no_event(self):
         communicator = WebsocketCommunicator(MarkingConsumer, "ws/marking")
         communicator.scope['user'] = self.user
         connected, _ = await communicator.connect()
         assert connected
+
+        response = await communicator.receive_json_from()
+        assert response == {"result": "error", "error_msg": ErrorMessages.NO_EVENT}
 
         response = await communicator.receive_output()
         assert response['type'] == 'websocket.close'
@@ -90,7 +97,7 @@ class TestConsumer(object):
                              time_to=time_to,
                              name='past')
 
-        await self.assert_connection_fails(event_id=event.uuid)
+        await self.assert_connection_fails(event_id=event.uuid, error_msg=ErrorMessages.NOT_RUNNING_EVENT)
 
     async def connection_future_event(self):
         time_from = datetime.datetime.utcnow() + datetime.timedelta(minutes=12)
@@ -100,7 +107,7 @@ class TestConsumer(object):
                              time_to=time_to,
                              name='future')
 
-        await self.assert_connection_fails(event_id=event.uuid)
+        await self.assert_connection_fails(event_id=event.uuid, error_msg=ErrorMessages.NOT_RUNNING_EVENT)
 
 
 @pytest.mark.django_db(transaction=True)
@@ -205,6 +212,8 @@ class TestInteraction(object):
 
     async def test_mark_me_first(self):
         mark_me_comm = await self.connect("mark_me")
+        # Fuck. It seems to me that channel layer doesn't have time to send messages
+        await asyncio.sleep(1)
         ready_to_mark_comm = await self.connect("ready_to_mark")
 
         response = await ready_to_mark_comm.receive_json_from()
@@ -244,6 +253,8 @@ class TestInteraction(object):
 
     async def test_refuse_to_mark(self):
         mark_me_comm = await self.connect("mark_me")
+        # Fuck. It seems to me that channel layer doesn't have time to send messages
+        await asyncio.sleep(1)
         ready_to_mark_comm = await self.connect("ready_to_mark")
 
         response = await ready_to_mark_comm.receive_json_from()
@@ -286,6 +297,8 @@ class TestInteraction(object):
         assert connected
 
         self.event.save()
+        # Fuck. It seems to me that channel layer doesn't have time to send messages
+        await asyncio.sleep(1)
 
         ready_to_mark_comm = await self.connect("ready_to_mark")
         response = await ready_to_mark_comm.receive_json_from()
