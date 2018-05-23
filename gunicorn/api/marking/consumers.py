@@ -1,3 +1,4 @@
+import random
 from datetime import datetime
 from urllib.parse import parse_qs
 
@@ -8,7 +9,7 @@ from django.core.exceptions import ValidationError
 from .misc.websocket_decorators import require_group_message_param, require_client_message_param, \
     ignore_messages_from_myself
 from .storage import storage
-from ..models import Event
+from ..models import Event, UserProfile
 
 
 def get_event_by_uuid(uuid):
@@ -41,6 +42,12 @@ def event_is_past(event):
     return time_to < now
 
 
+def edit_karma(user, delta: int):
+    profile = UserProfile.objects.filter(user=user).first()
+    profile.karma += delta
+    profile.save()
+
+
 class ErrorMessages:
     NO_EVENT = "No event id"
     INVALID_EVENT = "Invalid event"
@@ -48,10 +55,22 @@ class ErrorMessages:
     NOT_PERMITTED = "Action is not permitted"
 
 
+class EncouragingMessages:
+    general_delta = 50
+    general = ["Ты такой молодец, я не могу! ^_^' +{} к карме!".format(general_delta),
+               "Круто! +{} к карме!".format(general_delta),
+               "Огонь! +{} к карме!".format(general_delta),
+               "От души! +{} к карме!".format(general_delta)]
+    double_combo = []
+    triple_combo = []
+    great = []
+
+
 class EventConsumer(JsonWebsocketConsumer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.event = None
+        self.user = None
 
     def connect(self):
         self.accept()
@@ -67,11 +86,11 @@ class EventConsumer(JsonWebsocketConsumer):
             return False
 
         asked_to_mark_list = [int(o.decode('utf-8')) for o in storage.get_list("asked_to_mark_{}".format(event_id))]
-
         if self.scope['user'].id in asked_to_mark_list:
             self.send_json({"result": "error", "error_msg": ErrorMessages.NOT_PERMITTED}, close=True)
             return False
 
+        self.user = self.scope['user']
         self.event = event
 
         return True
@@ -94,21 +113,20 @@ class MarkingConsumer(EventConsumer):
             self.close()
             return False
 
-        user = self.scope['user']
-
         marking_list = [int(o.decode('utf-8')) for o in storage.get_list("mark_me_{}".format(self.event.uuid))]
         self.marking_list = set(marking_list)
 
         async_to_sync(self.channel_layer.group_add)("event_{}".format(self.event.uuid), self.channel_name)
-        storage.add_to_list("ready_to_mark_{}".format(self.event.uuid), user.id)
+        storage.add_to_list("ready_to_mark_{}".format(self.event.uuid), self.user.id)
         self.send_json({"message": 'marking_list', "params": {"marking_list": marking_list}})
 
     def disconnect(self, close_code):
         if self.event is not None:
+            storage.remove_from_list("ready_to_mark_{}".format(self.event.uuid), self.user.id)
             async_to_sync(self.channel_layer.group_discard)("event_{}".format(self.event.uuid), self.channel_name)
-            storage.remove_from_list("ready_to_mark_{}".format(self.event.uuid), self.scope['user'].id)
 
     def receive_json(self, content, **kwargs):
+        print("Message from client", content)
         if content["message"] in self.messages:
             getattr(self, content["message"])(content.get("params"))
         else:
@@ -137,9 +155,11 @@ class MarkingConsumer(EventConsumer):
     @require_client_message_param(['user_id'])
     def confirm_marking(self, params):
         user_id = params['user_id']
+        print(self.prepared_user_id, user_id)
         if self.prepared_user_id != user_id:
             self.send_json({"result": "denial"})
             return
+
         async_to_sync(self.channel_layer.group_send)(
             "event_{}".format(self.event.uuid),
             {
@@ -151,7 +171,8 @@ class MarkingConsumer(EventConsumer):
         )
 
         self.prepared_user_id = None
-        self.send_json({"result": "ok"})
+        self.send_json({"result": "ok", "message": random.choice(EncouragingMessages.general)})
+        edit_karma(self.user, EncouragingMessages.general_delta)
 
     @require_client_message_param(['user_id'])
     def refuse_to_mark(self, params):
@@ -201,8 +222,7 @@ class MarkMeConsumer(EventConsumer):
             self.send_json({"result": "error", "error_msg": ErrorMessages.NOT_RUNNING_EVENT})
             self.close()
             return False
-
-        user = self.scope['user']
+        user = self.user
 
         async_to_sync(self.channel_layer.group_add)("event_{}".format(self.event.uuid), self.channel_name)
         async_to_sync(self.channel_layer.group_send)(
@@ -226,8 +246,6 @@ class MarkMeConsumer(EventConsumer):
     @ignore_messages_from_myself
     @require_group_message_param(["ready_to_mark_user_id", "mark_me_user_id"])
     def group_marked(self, params):
-        if params['mark_me_user_id'] != self.scope['user'].id:
-            return
         self.send_json({"message": "marked", "params": {'user_id': params['ready_to_mark_user_id']}}, close=True)
 
     def disconnect(self, code):

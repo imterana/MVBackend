@@ -5,8 +5,8 @@ import pytest
 from channels.testing import WebsocketCommunicator
 from django.contrib.auth.models import User
 
-from .consumers import MarkingConsumer, MarkMeConsumer, ErrorMessages
-from ..models import Event
+from .consumers import MarkingConsumer, MarkMeConsumer, ErrorMessages, EncouragingMessages
+from ..models import Event, UserProfile
 
 
 @pytest.mark.django_db(transaction=True)
@@ -205,10 +205,7 @@ class TestInteraction(object):
         response = await ready_to_mark_comm.receive_json_from()
         assert response == {'result': 'ok'}
 
-        await ready_to_mark_comm.send_json_to(
-            {"message": "confirm_marking", 'params': {'user_id': self.mark_me_user.id}})
-        response = await ready_to_mark_comm.receive_json_from()
-        assert response == {'result': 'ok'}
+        await self.assert_successful_confirm_marking(ready_to_mark_comm)
 
         response = await mark_me_comm.receive_json_from()
         message = response.get('message')
@@ -216,6 +213,31 @@ class TestInteraction(object):
 
         params = response.get('params')
         assert params == {'user_id': self.ready_to_mark_user.id}
+
+    async def assert_successful_confirm_marking(self, ready_to_mark_comm, ready_to_mark_user=None,
+                                                mark_me_user_id=None):
+        if ready_to_mark_user is None:
+            ready_to_mark_user = self.ready_to_mark_user
+        if mark_me_user_id is None:
+            mark_me_user_id = self.mark_me_user.id
+
+        profile = UserProfile.objects.filter(user=ready_to_mark_user).first()
+        if profile is None:
+            profile = UserProfile(user=ready_to_mark_user)
+            profile.save()
+        karma = profile.karma
+
+        await ready_to_mark_comm.send_json_to(
+            {"message": "confirm_marking", 'params': {'user_id': mark_me_user_id}})
+        response = await ready_to_mark_comm.receive_json_from()
+        result = response.get('result')
+        assert result == 'ok'
+        message = response.get('message')
+        assert message in EncouragingMessages.general
+        await asyncio.sleep(1)
+
+        profile = UserProfile.objects.filter(user=ready_to_mark_user).first()
+        assert karma + EncouragingMessages.general_delta == profile.karma
 
     async def test_mark_me_first(self):
         mark_me_comm = await self.connect("mark_me")
@@ -309,7 +331,6 @@ class TestInteraction(object):
 
         ready_to_mark_comm = await self.connect("ready_to_mark")
         response = await ready_to_mark_comm.receive_json_from()
-        print(response)
         message = response.get('message')
         assert message == 'marking_list'
         params = response.get('params')
@@ -335,10 +356,7 @@ class TestInteraction(object):
         response = await ready_to_mark_comm.receive_json_from()
         assert response == {'result': 'ok'}
 
-        await ready_to_mark_comm.send_json_to(
-            {"message": "confirm_marking", 'params': {'user_id': mark_me_user2.id}})
-        response = await ready_to_mark_comm.receive_json_from()
-        assert response == {'result': 'ok'}
+        await self.assert_successful_confirm_marking(ready_to_mark_comm, mark_me_user_id=mark_me_user2.id)
 
         response = await mark_me_comm2.receive_json_from()
         message = response.get('message')
@@ -353,11 +371,8 @@ class TestInteraction(object):
         response = await ready_to_mark_comm.receive_json_from()
         assert response == {'result': 'ok'}
 
-        await ready_to_mark_comm.send_json_to(
-            {"message": "confirm_marking", 'params': {'user_id': mark_me_user1.id}})
-        response = await ready_to_mark_comm.receive_json_from()
-        assert response == {'result': 'ok'}
-
+        await self.assert_successful_confirm_marking(ready_to_mark_comm, mark_me_user_id=mark_me_user1.id)
+        
         response = await mark_me_comm1.receive_json_from()
         message = response.get('message')
         assert message == "marked"

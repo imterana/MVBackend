@@ -33,7 +33,6 @@ def require_client_message_param(required):
 
     def decorator(func):
         def wrapper(self, params):
-            print("Message from client:", params)
             for param in required:
                 if param not in params:
                     self.send_json({"result": "error", "error_msg": "{} is missing".format(param)})
