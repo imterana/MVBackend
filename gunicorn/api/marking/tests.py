@@ -5,12 +5,10 @@ import pytest
 from channels.testing import WebsocketCommunicator
 from django.contrib.auth.models import User
 
-from .consumers import MarkingConsumer, MarkMeConsumer, ErrorMessages, EncouragingMessages
-from .websocket_api import ClientResponse, ClientMessages
+from .consumers import MarkingConsumer, MarkMeConsumer
+from .misc.client_communication import ClientResponse, ClientMessages, ErrorMessages, EncouragingMessages
 from ..models import Event, UserProfile
 
-
-# TODO test what if we don't receive any answer when it is expected
 
 @pytest.mark.django_db(transaction=True)
 def create_user(username):
@@ -185,6 +183,7 @@ class TestInteraction(object):
         cls.ready_to_mark_user = create_user("ready_to_mark_test_user")
         cls.event = create_event(cls.ready_to_mark_user)
         cls.event.users.add(cls.mark_me_user)
+        cls.event.users.add(cls.ready_to_mark_user)
         cls.event.save()
 
     async def connect(self, user_type, user=None):
@@ -282,6 +281,12 @@ class TestInteraction(object):
         response = await ready_to_mark_comm.receive_json_from()
         assert response == ClientResponse.response_ok(message=ClientMessages.USER_JOINED,
                                                       params={'user_id': joined_user_id})
+
+    @staticmethod
+    async def assert_valid_user_left(ready_to_mark_comm, left_user_id):
+        response = await ready_to_mark_comm.receive_json_from()
+        assert response == ClientResponse.response_ok(message=ClientMessages.USER_LEFT,
+                                                      params={'user_id': left_user_id})
 
     async def test_mark_me_first(self):
         mark_me_comm = await self.connect("mark_me")
@@ -385,10 +390,7 @@ class TestInteraction(object):
 
         # ready_to_mark_user1 chooses a user to mark
         await self.assert_successful_prepare_to_mark(ready_to_mark_comm1, self.mark_me_user.id)
-
-        response = await ready_to_mark_comm2.receive_json_from()
-        assert response == ClientResponse.response_ok(ClientMessages.USER_LEFT,
-                                                      params={"user_id": self.mark_me_user.id})
+        await self.assert_valid_user_left(ready_to_mark_comm2, self.mark_me_user.id)
 
         # ready_to_mark_user2 can't choose the user chosen by ready_to_mark_user1
         await ready_to_mark_comm2.send_json_to(
@@ -398,19 +400,13 @@ class TestInteraction(object):
 
         # ready_to_mark_user1 refuses to mark the chosen user
         await self.assert_successful_refuse_to_mark(ready_to_mark_comm1)
-
-        response = await ready_to_mark_comm2.receive_json_from()
-        assert response == ClientResponse.response_ok(ClientMessages.USER_JOINED,
-                                                      params={"user_id": self.mark_me_user.id})
+        await self.assert_valid_user_joined(ready_to_mark_comm2, self.mark_me_user.id)
 
         # ready_to_mark_user2 marks the user
         await self.assert_successful_marking(mark_me_comm=mark_me_comm,
                                              ready_to_mark_comm=ready_to_mark_comm2,
                                              ready_to_mark_user=ready_to_mark_user2)
-
-        response = await ready_to_mark_comm1.receive_json_from()
-        assert response == ClientResponse.response_ok(ClientMessages.USER_LEFT,
-                                                      params={"user_id": self.mark_me_user.id})
+        await self.assert_valid_user_left(ready_to_mark_comm1, self.mark_me_user.id)
 
         # ready_to_mark_user1 can't choose the marked user
         await ready_to_mark_comm1.send_json_to(

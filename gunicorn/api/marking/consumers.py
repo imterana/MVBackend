@@ -6,10 +6,9 @@ from asgiref.sync import async_to_sync
 from channels.generic.websocket import JsonWebsocketConsumer
 from django.core.exceptions import ValidationError
 
-from .misc.websocket_decorators import require_group_message_param, require_client_message_param, \
-    ignore_own_messages
+from .misc.client_communication import ClientResponse, ClientMessages, ErrorMessages, EncouragingMessages
+from .misc.websocket_decorators import require_group_message_param, require_client_message_param, ignore_own_messages
 from .storage import storage
-from .websocket_api import ClientResponse, ClientMessages, ErrorMessages, EncouragingMessages
 from ..models import Event, UserProfile
 
 
@@ -174,7 +173,7 @@ class MarkingConsumer(EventConsumer):
         global_list = storage.get_list("mark_me_{}".format(self.event.uuid))
         print(
             "refuse to mark {} ### my marking list: {} ### global: {} ### prepared user id: {}"
-              .format(self.user.id, self.marking_list, global_list, self.prepared_user_id))
+                .format(self.user.id, self.marking_list, global_list, self.prepared_user_id))
 
         storage.add_to_list("mark_me_{}".format(self.event.uuid), self.prepared_user_id)
         self.marking_list.add(self.prepared_user_id)
@@ -203,8 +202,6 @@ class MarkingConsumer(EventConsumer):
     @ignore_own_messages
     @require_group_message_param(["user_id"])
     def group_do_not_mark(self, params):
-        if params['user_id'] == self.prepared_user_id:
-            return
         try:
             self.marking_list.remove(params['user_id'])
         except KeyError:

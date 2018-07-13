@@ -1,4 +1,4 @@
-from ..websocket_api import ClientResponse
+from .client_communication import ClientResponse
 
 
 def require_group_message_param(required):
@@ -49,11 +49,11 @@ def require_client_message_param(required):
 
 def ignore_own_messages(func):
     """
-        Decorator for group messages.
-        Checks if sender is current consumer and ignores the message in that case.
-        :param
-        :return:
-        """
+    Decorator for group messages.
+    Checks if sender is current consumer and ignores the message in that case.
+    :param
+    :return:
+    """
 
     def wrapper(self, params):
         sender = params['sender']
