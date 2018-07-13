@@ -27,8 +27,7 @@ def get_profile_by_id(user_id):
 
 def save_file(file, filename):
     with open(filename, 'wb+') as destination:
-        for chunk in file.chunks():
-            destination.write(chunk)
+        destination.write(file)
 
 
 @require_content_type('json')
@@ -54,7 +53,7 @@ def profile_get(request):
 def profile_update_picture(request):
     print(request)
     user = request.user
-    image_file = base64.decodebytes(request.POST["image"])
+    image_file = base64.decodebytes(request.POST["image"].encode('utf-8'))
     _, extension = os.path.splitext(request.POST["name"])
     filename = "{uid}_avatar{ext}".format(uid=user.id, ext=extension)
     save_file(image_file, os.path.join(AVATARS_DIR, filename))
@@ -81,13 +80,14 @@ def profile_update_info(request):
     return APIResponse()
 
 
+@require_content_type('json')
 @require_arguments(["image", "name"])
 @require_POST
 @login_required
 def profile_add_confirmation_image(request):
     # TODO some notification for moderator to mark the user as confirmed
     user = request.user
-    image_file = base64.decodebytes(request.POST["image"])
+    image_file = base64.decodebytes(request.POST["image"].encode('utf-8'))
     _, extension = os.path.splitext(request.POST["name"])
     filename = "{uid}_confirmation{ext}".format(uid=user.id, ext=extension)
     save_file(image_file, os.path.join(CONFIRMATIONS_DIR, filename))

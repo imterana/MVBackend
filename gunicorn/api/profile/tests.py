@@ -141,17 +141,16 @@ class UserProfileTestCase(APITestCase):
         client.force_login(self.user_profile.user)
 
         filename = os.path.join(TEST_FILES_DIR, 'avatar.jpg')
-        print(filename)
+
         with open(filename, "rb") as file:
             response = client.post(reverse('update_profile_picture'),
-                                   json.dumps({'name': 'test avatar',
-                                               'image': file.read()
-                                               }),
+                                   json.dumps({'name': 'test avatar.jpg',
+                                               'image': base64.encodebytes(file.read()).decode('utf-8')}),
                                    content_type='application/json')
-        print(response)
+
         self.parseAndCheckResponseCode(response, ResponseCode.RESPONSE_OK)
 
-        response = client.get(reverse('get_profile'), json.dumps({'user_id': self.user_profile.user.id}),
+        response = client.get(reverse('get_profile'), {'user_id': self.user_profile.user.id},
                               content_type='application/json')
         parsed = self.parseAndCheckResponseCode(response, ResponseCode.RESPONSE_OK)
         profile = parsed["response"]
@@ -165,5 +164,7 @@ class UserProfileTestCase(APITestCase):
         filename = os.path.join(TEST_FILES_DIR, 'confirmation.jpg')
         with open(filename, "rb") as file:
             response = client.post(reverse('upload_profile_confirmation'),
-                                   {'name': 'test confirmation', 'image': file})
+                                   json.dumps({'name': 'test confirmation.jpg',
+                                               'image': base64.encodebytes(file.read()).decode('utf-8')}),
+                                   content_type='application/json')
         self.parseAndCheckResponseCode(response, ResponseCode.RESPONSE_OK)
