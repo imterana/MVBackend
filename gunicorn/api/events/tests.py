@@ -5,7 +5,7 @@ from django.contrib.auth.models import User
 from django.test import Client
 from django.urls import reverse
 
-from .misc.time import datetime_to_string
+from ..misc.time import datetime_to_string
 from ..misc.response import ResponseCode
 from ..misc.test import APITestCase
 from ..models import Event

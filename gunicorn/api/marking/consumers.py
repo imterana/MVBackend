@@ -4,20 +4,12 @@ from urllib.parse import parse_qs
 
 from asgiref.sync import async_to_sync
 from channels.generic.websocket import JsonWebsocketConsumer
-from django.core.exceptions import ValidationError
 
 from .misc.client_communication import ClientResponse, ClientMessages, ErrorMessages, EncouragingMessages
 from .misc.websocket_decorators import require_group_message_param, require_client_message_param, ignore_own_messages
 from .storage import storage
-from ..models import Event, UserProfile
-
-
-def get_event_by_uuid(uuid):
-    try:
-        event = Event.objects.filter(uuid=uuid).first()
-    except ValidationError:
-        event = None
-    return event
+from ..events.views import get_event_by_uuid
+from ..models import UserProfile
 
 
 def retrieve_event_id(query_string):

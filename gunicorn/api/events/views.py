@@ -5,7 +5,7 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.views.decorators.http import require_GET, require_POST
 
-from .misc.time import datetime_to_string, datetime_from_string
+from ..misc.time import datetime_to_string, datetime_from_string
 from ..misc.http_decorators import (
     require_arguments,
     cast_arguments,
