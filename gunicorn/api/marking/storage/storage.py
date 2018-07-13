@@ -26,4 +26,4 @@ def get_list(listname):
 
 def remove_from_list(listname, value):
     r = redis.Redis(connection_pool=ConnectionPool())
-    r.lrem(listname, value, 0)
+    return r.lrem(listname, value, 0)

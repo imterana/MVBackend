@@ -205,18 +205,23 @@ class TestInteraction(object):
         if user:
             communicator.scope['user'] = user
 
-        print(communicator.scope['user'])
-
         connected, _ = await communicator.connect()
         assert connected
         return communicator
 
-    async def assert_successful_marking(self, mark_me_comm, ready_to_mark_comm, ready_to_mark_user=None):
-        await self.assert_successful_prepare_to_mark(ready_to_mark_comm, self.mark_me_user.id)
+    async def assert_successful_marking(self, mark_me_comm, ready_to_mark_comm, mark_me_user=None,
+                                        ready_to_mark_user=None):
+        if mark_me_user is None:
+            mark_me_user = self.mark_me_user
 
-        profile = UserProfile.objects.filter(user=self.ready_to_mark_user).first()
+        if ready_to_mark_user is None:
+            ready_to_mark_user = self.ready_to_mark_user
+
+        await self.assert_successful_prepare_to_mark(ready_to_mark_comm, mark_me_user.id)
+
+        profile = UserProfile.objects.filter(user=ready_to_mark_user).first()
         if profile is None:
-            profile = UserProfile(user=self.ready_to_mark_user)
+            profile = UserProfile(user=ready_to_mark_user)
             profile.save()
         karma = profile.karma
 
@@ -224,10 +229,10 @@ class TestInteraction(object):
 
         await asyncio.sleep(1)
 
-        profile = UserProfile.objects.filter(user=self.ready_to_mark_user).first()
+        profile = UserProfile.objects.filter(user=ready_to_mark_user).first()
         assert karma + EncouragingMessages.general_delta == profile.karma
 
-        await self.assert_successful_was_marked(mark_me_comm, self.ready_to_mark_user.id)
+        await self.assert_successful_was_marked(mark_me_comm, ready_to_mark_user.id)
 
     @staticmethod
     async def assert_successful_prepare_to_mark(ready_to_mark_comm, mark_me_user_id):
@@ -272,6 +277,12 @@ class TestInteraction(object):
         assert response.get('message') == 'marking_list'
         assert set(response.get('params').get('marking_list')) == set(marking_list)
 
+    @staticmethod
+    async def assert_valid_user_joined(ready_to_mark_comm, joined_user_id):
+        response = await ready_to_mark_comm.receive_json_from()
+        assert response == ClientResponse.response_ok(message=ClientMessages.USER_JOINED,
+                                                      params={'user_id': joined_user_id})
+
     async def test_mark_me_first(self):
         mark_me_comm = await self.connect("mark_me")
 
@@ -280,10 +291,7 @@ class TestInteraction(object):
 
         ready_to_mark_comm = await self.connect("ready_to_mark")
 
-        response = await ready_to_mark_comm.receive_json_from()
-        assert response == ClientResponse.response_ok(message=ClientMessages.MARKING_LIST,
-                                                      params={'marking_list': [self.mark_me_user.id]})
-
+        await self.assert_valid_marking_list(ready_to_mark_comm, [self.mark_me_user.id])
         await self.assert_successful_marking(mark_me_comm=mark_me_comm, ready_to_mark_comm=ready_to_mark_comm)
 
         await mark_me_comm.disconnect()
@@ -292,16 +300,11 @@ class TestInteraction(object):
     async def test_ready_to_mark_first(self):
         ready_to_mark_comm = await self.connect("ready_to_mark")
 
-        response = await ready_to_mark_comm.receive_json_from()
-        assert response == ClientResponse.response_ok(message=ClientMessages.MARKING_LIST,
-                                                      params={'marking_list': []})
+        await self.assert_valid_marking_list(ready_to_mark_comm, [])
 
         mark_me_comm = await self.connect("mark_me")
 
-        response = await ready_to_mark_comm.receive_json_from()
-        assert response == ClientResponse.response_ok(message=ClientMessages.USER_JOINED,
-                                                      params={'user_id': self.mark_me_user.id})
-
+        await self.assert_valid_user_joined(ready_to_mark_comm, self.mark_me_user.id)
         await self.assert_successful_marking(mark_me_comm=mark_me_comm, ready_to_mark_comm=ready_to_mark_comm)
 
         await mark_me_comm.disconnect()
@@ -315,14 +318,9 @@ class TestInteraction(object):
 
         ready_to_mark_comm = await self.connect("ready_to_mark")
 
-        response = await ready_to_mark_comm.receive_json_from()
-        assert response == ClientResponse.response_ok(message=ClientMessages.MARKING_LIST,
-                                                      params={'marking_list': [self.mark_me_user.id]})
-
+        await self.assert_valid_marking_list(ready_to_mark_comm, [self.mark_me_user.id])
         await self.assert_successful_prepare_to_mark(ready_to_mark_comm, self.mark_me_user.id)
-
         await self.assert_successful_refuse_to_mark(ready_to_mark_comm)
-
         await self.assert_successful_marking(mark_me_comm=mark_me_comm, ready_to_mark_comm=ready_to_mark_comm)
 
         await mark_me_comm.disconnect()
@@ -330,10 +328,12 @@ class TestInteraction(object):
 
     async def test_several_mark_me(self):
         mark_me_user1 = create_user("mmu1")
+        print("mmu1 {}".format(mark_me_user1.id))
         self.event.users.add(mark_me_user1)
         mark_me_comm1 = await self.connect("mark_me", user=mark_me_user1)
 
         mark_me_user2 = create_user("mmu2")
+        print("mmu2 {}".format(mark_me_user2.id))
         self.event.users.add(mark_me_user2)
         mark_me_comm2 = await self.connect("mark_me", user=mark_me_user2)
 
@@ -353,13 +353,71 @@ class TestInteraction(object):
         # Mark mark_me_user2
 
         await self.assert_successful_marking(ready_to_mark_comm=ready_to_mark_comm,
-                                             mark_me_comm=mark_me_comm2)
+                                             mark_me_comm=mark_me_comm2, mark_me_user=mark_me_user2)
 
         # Mark mark_me_user1
 
         await self.assert_successful_marking(ready_to_mark_comm=ready_to_mark_comm,
-                                             mark_me_comm=mark_me_comm1)
+                                             mark_me_comm=mark_me_comm1, mark_me_user=mark_me_user1)
 
         await mark_me_comm1.disconnect()
         await mark_me_comm2.disconnect()
         await ready_to_mark_comm.disconnect()
+
+    async def test_several_ready_to_mark(self):
+        ready_to_mark_user1 = create_user("rtmu1")
+        self.event.users.add(ready_to_mark_user1)
+        ready_to_mark_comm1 = await self.connect("ready_to_mark", user=ready_to_mark_user1)
+
+        ready_to_mark_user2 = create_user("rtmu2")
+        self.event.users.add(ready_to_mark_user2)
+        ready_to_mark_comm2 = await self.connect("ready_to_mark", user=ready_to_mark_user2)
+
+        self.event.save()
+
+        await self.assert_valid_marking_list(ready_to_mark_comm1, [])
+        await self.assert_valid_marking_list(ready_to_mark_comm2, [])
+
+        mark_me_comm = await self.connect("mark_me")
+
+        await self.assert_valid_user_joined(ready_to_mark_comm1, self.mark_me_user.id)
+        await self.assert_valid_user_joined(ready_to_mark_comm2, self.mark_me_user.id)
+
+        # ready_to_mark_user1 chooses a user to mark
+        await self.assert_successful_prepare_to_mark(ready_to_mark_comm1, self.mark_me_user.id)
+
+        response = await ready_to_mark_comm2.receive_json_from()
+        assert response == ClientResponse.response_ok(ClientMessages.USER_LEFT,
+                                                      params={"user_id": self.mark_me_user.id})
+
+        # ready_to_mark_user2 can't choose the user chosen by ready_to_mark_user1
+        await ready_to_mark_comm2.send_json_to(
+            {"message": "prepare_to_mark", 'params': {'user_id': self.mark_me_user.id}})
+        response = await ready_to_mark_comm2.receive_json_from()
+        assert response == ClientResponse.response_error(ErrorMessages.USER_ALREADY_CHOSEN)
+
+        # ready_to_mark_user1 refuses to mark the chosen user
+        await self.assert_successful_refuse_to_mark(ready_to_mark_comm1)
+
+        response = await ready_to_mark_comm2.receive_json_from()
+        assert response == ClientResponse.response_ok(ClientMessages.USER_JOINED,
+                                                      params={"user_id": self.mark_me_user.id})
+
+        # ready_to_mark_user2 marks the user
+        await self.assert_successful_marking(mark_me_comm=mark_me_comm,
+                                             ready_to_mark_comm=ready_to_mark_comm2,
+                                             ready_to_mark_user=ready_to_mark_user2)
+
+        response = await ready_to_mark_comm1.receive_json_from()
+        assert response == ClientResponse.response_ok(ClientMessages.USER_LEFT,
+                                                      params={"user_id": self.mark_me_user.id})
+
+        # ready_to_mark_user1 can't choose the marked user
+        await ready_to_mark_comm1.send_json_to(
+            {"message": "prepare_to_mark", 'params': {'user_id': self.mark_me_user.id}})
+        response = await ready_to_mark_comm1.receive_json_from()
+        assert response == ClientResponse.response_error(ErrorMessages.USER_ALREADY_CHOSEN)
+
+        await ready_to_mark_comm1.disconnect()
+        await ready_to_mark_comm2.disconnect()
+        await mark_me_comm.disconnect()

@@ -5,7 +5,8 @@ class ErrorMessages:
     NOT_RUNNING_EVENT = "Сейчас эта пара не идет"
     PAST_EVENT = "Пара уже закончилась"
     NOT_PERMITTED = "Нельзя так!"
-    USER_ALREADY_CHOSEN = "Ты уже выбрал пользователя"
+    ALREADY_HAVE_USER = "Ты уже выбрал пользователя"
+    USER_ALREADY_CHOSEN = "Его уже отмечают"
 
 
 class EncouragingMessages:

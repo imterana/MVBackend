@@ -49,9 +49,6 @@ def edit_karma(user, delta: int):
     profile.save()
 
 
-# TODO retrieve to separate file
-
-
 class EventConsumer(JsonWebsocketConsumer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -125,13 +122,22 @@ class MarkingConsumer(EventConsumer):
 
     @require_client_message_param(['user_id'])
     def prepare_to_mark(self, params):
+        global_list = storage.get_list("mark_me_{}".format(self.event.uuid))
+        print("prepare to mark {}  user id {} ### my marking list: {} ### global: {} ### prepared user id: {}"
+              .format(self.user.id, params['user_id'], self.marking_list, global_list, self.prepared_user_id))
+
         user_id = params['user_id']
         if self.prepared_user_id is not None:
+            self.send_json(ClientResponse.response_error(ErrorMessages.ALREADY_HAVE_USER))
+            return
+
+        if not storage.remove_from_list("mark_me_{}".format(self.event.uuid), user_id):
             self.send_json(ClientResponse.response_error(ErrorMessages.USER_ALREADY_CHOSEN))
             return
+
+        self.marking_list.remove(user_id)
         self.prepared_user_id = user_id
 
-        storage.remove_from_list("mark_me_{}".format(self.event.uuid), user_id)
         async_to_sync(self.channel_layer.group_send)(
             "event_{}".format(self.event.uuid),
             {
@@ -144,6 +150,10 @@ class MarkingConsumer(EventConsumer):
         self.send_json(ClientResponse.response_ok(message=ClientMessages.PREPARED))
 
     def confirm_marking(self, params):
+        global_list = storage.get_list("mark_me_{}".format(self.event.uuid))
+        print("confirm marking {} ### my marking list: {} ### global: {} ### prepared user id: {}"
+              .format(self.user.id, self.marking_list, global_list, self.prepared_user_id))
+
         async_to_sync(self.channel_layer.group_send)(
             "event_{}".format(self.event.uuid),
             {
@@ -161,7 +171,14 @@ class MarkingConsumer(EventConsumer):
         edit_karma(self.user, EncouragingMessages.general_delta)
 
     def refuse_to_mark(self, params):
+        global_list = storage.get_list("mark_me_{}".format(self.event.uuid))
+        print(
+            "refuse to mark {} ### my marking list: {} ### global: {} ### prepared user id: {}"
+              .format(self.user.id, self.marking_list, global_list, self.prepared_user_id))
+
         storage.add_to_list("mark_me_{}".format(self.event.uuid), self.prepared_user_id)
+        self.marking_list.add(self.prepared_user_id)
+
         async_to_sync(self.channel_layer.group_send)(
             "event_{}".format(self.event.uuid),
             {
@@ -191,6 +208,8 @@ class MarkingConsumer(EventConsumer):
         try:
             self.marking_list.remove(params['user_id'])
         except KeyError:
+            print("Ready to mark user id {rtmuid}, user id to remove {uid}, marking list {ml}"
+                  .format(rtmuid=self.user.id, uid=params['user_id'], ml=self.marking_list))
             return
         self.send_json(ClientResponse.response_ok(message=ClientMessages.USER_LEFT,
                                                   params={'user_id': params['user_id']}))
