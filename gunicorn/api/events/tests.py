@@ -163,7 +163,7 @@ class EventTestCase(APITestCase):
     def test_leave_nonexisting_event(self):
         client = Client()
         client.force_login(self.user)
-        response = client.post(reverse('leave_event'), {'event_id': 'none'})
+        response = client.post(reverse('leave_event'), json.dumps({'event_id': 'none'}), content_type='application/json')
         self.parseAndCheckResponseCode(response,
                                        ResponseCode.RESPONSE_INVALID_ARGUMENT)
 
