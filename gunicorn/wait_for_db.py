@@ -1,17 +1,16 @@
 from time import sleep
 
 import psycopg2
-
 from backend.settings import DATABASES
 
 
 def connect_to(db_dict):
-    assert(db_dict['ENGINE'] == 'django.db.backends.postgresql_psycopg2')
+    assert (db_dict['ENGINE'] == 'django.db.backends.postgresql_psycopg2')
     kwargs = {
-            'dbname': db_dict['NAME'],
-            'user': db_dict['USER'],
-            'password': db_dict['PASSWORD'],
-            'host': db_dict['HOST'],
+        'dbname': db_dict['NAME'],
+        'user': db_dict['USER'],
+        'password': db_dict['PASSWORD'],
+        'host': db_dict['HOST'],
     }
     if db_dict['PORT']:
         kwargs['port'] = db_dict['PORT']

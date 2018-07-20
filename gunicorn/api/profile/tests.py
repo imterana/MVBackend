@@ -1,13 +1,13 @@
-from django.test import Client
+import base64
+import os
+
 from django.contrib.auth.models import User
+from django.test import Client
 from django.urls import reverse
 
 from ..misc.response import ResponseCode
-from ..misc.test import APITestCase
-
+from ..misc.test import APITestCase, JSONClient
 from ..models import UserProfile
-
-import os
 
 TEST_FILES_DIR = "/usr/src/test_files/"
 
@@ -32,7 +32,8 @@ class UserProfileTestCase(APITestCase):
         client = Client()
         client.force_login(self.user_profile.user)
 
-        response = client.get(reverse('get_profile'), {'user_id': self.user_profile.user.id})
+        response = client.get(reverse('get_profile'), {'user_id': self.user_profile.user.id},
+                              content_type='application/json')
         parsed = self.parseAndCheckResponseCode(response, ResponseCode.RESPONSE_OK)
         profile = parsed["response"]
 
@@ -52,11 +53,11 @@ class UserProfileTestCase(APITestCase):
         self.parseAndCheckResponseCode(response, ResponseCode.RESPONSE_INVALID_ARGUMENT)
 
     def test_update_profile_name(self):
-        client = Client()
+        client = JSONClient()
         client.force_login(self.user_profile.user)
 
         new_name = 'new display name'
-        response = client.post(reverse('update_profile_info'), {'display_name': new_name})
+        response = client.post_json(reverse('update_profile_info'), {'display_name': new_name})
         self.parseAndCheckResponseCode(response, ResponseCode.RESPONSE_OK)
 
         response = client.get(reverse('get_profile'), {'user_id': self.user_profile.user.id})
@@ -66,11 +67,11 @@ class UserProfileTestCase(APITestCase):
         self.assertEqual(new_name, profile["display_name"])
 
     def test_update_profile_bio(self):
-        client = Client()
+        client = JSONClient()
         client.force_login(self.user_profile.user)
 
         new_bio = 'new bio is a very cool bio'
-        response = client.post(reverse('update_profile_info'), {'bio': new_bio})
+        response = client.post_json(reverse('update_profile_info'), {'bio': new_bio})
         self.parseAndCheckResponseCode(response, ResponseCode.RESPONSE_OK)
 
         response = client.get(reverse('get_profile'), {'user_id': self.user_profile.user.id})
@@ -80,10 +81,10 @@ class UserProfileTestCase(APITestCase):
         self.assertEqual(new_bio, profile["bio"])
 
     def test_update_profile_without_parameters(self):
-        client = Client()
+        client = JSONClient()
         client.force_login(self.user_profile.user)
 
-        response = client.post(reverse('update_profile_info'), {})
+        response = client.post_json(reverse('update_profile_info'), {})
         self.parseAndCheckResponseCode(response, ResponseCode.RESPONSE_MISSING_ARGUMENT)
 
     def test_find_profile_by_name(self):
@@ -132,25 +133,32 @@ class UserProfileTestCase(APITestCase):
         self.assertEqual(self.user_profile.display_name, profile["display_name"])
 
     def test_update_profile_picture(self):
-        client = Client()
+        client = JSONClient()
         client.force_login(self.user_profile.user)
 
         filename = os.path.join(TEST_FILES_DIR, 'avatar.jpg')
+
         with open(filename, "rb") as file:
-            response = client.post(reverse('update_profile_picture'), {'name': 'test avatar', 'image': file})
+            response = client.post_json(reverse('update_profile_picture'),
+                                        {'name': 'test avatar.jpg',
+                                         'image': base64.encodebytes(file.read()).decode('utf-8')})
+
         self.parseAndCheckResponseCode(response, ResponseCode.RESPONSE_OK)
 
-        response = client.get(reverse('get_profile'), {'user_id': self.user_profile.user.id})
+        response = client.get(reverse('get_profile'), {'user_id': self.user_profile.user.id},
+                              content_type='application/json')
         parsed = self.parseAndCheckResponseCode(response, ResponseCode.RESPONSE_OK)
         profile = parsed["response"]
 
         self.assertEqual(profile['pic'], "{uid}_avatar.jpg".format(uid=self.user_profile.user.id))
 
     def test_upload_profile_confirmation(self):
-        client = Client()
+        client = JSONClient()
         client.force_login(self.user_profile.user)
 
         filename = os.path.join(TEST_FILES_DIR, 'confirmation.jpg')
         with open(filename, "rb") as file:
-            response = client.post(reverse('upload_profile_confirmation'), {'name': 'test confirmation', 'image': file})
-        self.parseAndCheckResponseCode(response, ResponseCode.RESPONSE_OK)
+            response = client.post_json(reverse('upload_profile_confirmation'),
+                                        {'name': 'test confirmation.jpg',
+                                         'image': base64.encodebytes(file.read()).decode('utf-8')})
+            self.parseAndCheckResponseCode(response, ResponseCode.RESPONSE_OK)

@@ -1,4 +1,10 @@
 django
 django-allauth
-gunicorn
+daphne
 psycopg2
+channels
+channels_redis
+asyncio
+pytest-django
+pytest-asyncio
+redis

@@ -7,7 +7,8 @@ from ..misc.response import (
 
 
 @require_GET
-@login_required
 def get_current_user_id(request):
     user = request.user
+    if user is None:
+        return APIResponse(response={'user_id': None})
     return APIResponse(response={'user_id': user.id})
