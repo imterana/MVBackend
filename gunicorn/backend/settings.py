@@ -15,16 +15,20 @@ import os
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+DEV_CONFIG = os.path.join(os.path.dirname(
+                 os.path.abspath(__file__)), "settings_dev.py")
+
+PROD_CONFIG = os.path.join(os.path.dirname(
+                 os.path.abspath(__file__)), "setting_prod.py")
+
+if os.path.exists(PROD_CONFIG):
+    from .settings_prod import *
+else:
+    from .settings_dev import *
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/2.0/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'q6xwefe%@$zn!in-j4@kt#!*$(n9j7rqhh2jjg(2=3j7b0((f('
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = ['*']
 
 # Application definition
 
@@ -44,6 +48,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.vk',
     'api.apps.ApiConfig',
     'channels',
+    'spa.apps.SpaConfig',
 ]
 
 MIDDLEWARE = [
