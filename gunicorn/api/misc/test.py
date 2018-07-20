@@ -1,6 +1,8 @@
-from django.test import TestCase
-
 import json
+
+from django.test import Client
+from django.test import TestCase
+from django.urls import reverse
 
 
 class APITestCase(TestCase):
@@ -9,3 +11,8 @@ class APITestCase(TestCase):
         parsed = json.loads(response.content)
         self.assertEqual(code, parsed["error"])
         return parsed
+
+
+class JSONClient(Client):
+    def post_json(self, path, message):
+        return self.post(path, json.dumps(message), content_type='application/json')

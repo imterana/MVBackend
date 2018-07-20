@@ -1,7 +1,5 @@
 import redis
-
-settings = {'port': 6379,
-            'host': 'redis'}
+from backend.settings import CHANNEL_LAYERS
 
 
 class ConnectionPool(object):
@@ -14,7 +12,8 @@ class ConnectionPool(object):
     @classmethod
     def __new__(cls, *args, **kwargs):
         if ConnectionPool.__connection_pool is None:
-            ConnectionPool.__connection_pool = redis.ConnectionPool(host=settings['host'], port=settings['port'])
+            host, port = CHANNEL_LAYERS['default']["CONFIG"]['hosts'][0]
+            ConnectionPool.__connection_pool = redis.ConnectionPool(host=host, port=port)
         return ConnectionPool.__connection_pool
 
 

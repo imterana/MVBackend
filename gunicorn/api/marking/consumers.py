@@ -28,13 +28,13 @@ def event_is_running(event):
     return not (time_from > now or time_to < now)
 
 
-def event_is_past(event):
+def event_is_over(event):
     time_to = datetime.utcfromtimestamp(event.time_to.timestamp())
     now = datetime.utcnow()
     return time_to < now
 
 
-def edit_karma(user, delta: int):
+def increase_karma(user, delta: int):
     profile = UserProfile.objects.filter(user=user).first()
     profile.karma += delta
     profile.save()
@@ -49,6 +49,8 @@ class EventConsumer(JsonWebsocketConsumer):
     def connect(self):
         self.accept()
 
+        self.user = self.scope['user']
+
         event_id = retrieve_event_id(self.scope['query_string'])
         if event_id is None:
             self.send_json(ClientResponse.response_error(ErrorMessages.NO_EVENT), close=True)
@@ -60,15 +62,14 @@ class EventConsumer(JsonWebsocketConsumer):
             return False
 
         asked_to_mark_list = [int(o.decode('utf-8')) for o in storage.get_list("asked_to_mark_{}".format(event_id))]
-        if self.scope['user'].id in asked_to_mark_list:
+        if self.user.id in asked_to_mark_list:
             self.send_json(ClientResponse.response_error(ErrorMessages.NOT_PERMITTED), close=True)
             return False
 
-        if event_is_past(event):
+        if event_is_over(event):
             self.send_json(ClientResponse.response_error(ErrorMessages.PAST_EVENT), close=True)
             return False
 
-        self.user = self.scope['user']
         self.event = event
 
         return True
@@ -159,9 +160,13 @@ class MarkingConsumer(EventConsumer):
         self.send_json(ClientResponse.response_ok(message=ClientMessages.MARKED,
                                                   params={"display_msg": random.choice(EncouragingMessages.general)}))
 
-        edit_karma(self.user, EncouragingMessages.general_delta)
+        increase_karma(self.user, EncouragingMessages.general_delta)
 
     def refuse_to_mark(self, params):
+        if self.prepared_user_id is None:
+            self.send_json(ClientResponse.response_error(ErrorMessages.NOT_PERMITTED))
+            return
+
         global_list = storage.get_list("mark_me_{}".format(self.event.uuid))
         print(
             "refuse to mark {} ### my marking list: {} ### global: {} ### prepared user id: {}"

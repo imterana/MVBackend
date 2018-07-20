@@ -141,6 +141,23 @@ class TestMarking(TestConsumer):
     async def test_connection_after_asking_to_mark(self):
         await self.connection_after_asking_to_mark()
 
+    async def test_refuse_not_chosen_user(self):
+        communicator = WebsocketCommunicator(self.consumer, self.route + "?event_id={eid}".format(eid=self.event.uuid))
+        communicator.scope['user'] = self.user
+        connected, _ = await communicator.connect()
+        assert connected
+
+        response = await communicator.receive_json_from()
+        assert response == ClientResponse.response_ok(ClientMessages.MARKING_LIST, params={"marking_list": []})
+
+        await communicator.send_json_to({"message": "refuse_to_mark"})
+
+        response = await communicator.receive_json_from()
+
+        assert response == ClientResponse.response_error(message=ErrorMessages.NOT_PERMITTED)
+
+        await communicator.disconnect()
+
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
